@@ -1,0 +1,5 @@
+resource_group_name  = "rg-rakathon-setup"
+storage_account_name = "STRG_ACCOUNT_FROM_SETUP_OUTPUT"
+container_name       = "tfstate"
+key                  = "shared.tfstate"
+use_azuread_auth     = true
