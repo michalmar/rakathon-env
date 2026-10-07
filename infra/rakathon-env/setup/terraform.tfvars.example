@@ -1,0 +1,18 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+location        = "swedencentral"
+
+resource_group_name      = "rg-rakathon-setup"
+project_name_compact     = "rakathon"
+account_replication_type = "LRS"
+storage_use_azuread       = true
+shared_access_key_enabled = false
+
+# Prázdný seznam ponechá veřejný endpoint dostupný ze všech sítí.
+# Pro omezení přidejte veřejnou IP počítače, například "203.0.113.10/32".
+allowed_ip_ranges = []
+
+tags = {
+  environment = "hackathon"
+  managed-by  = "terraform"
+  scope       = "setup"
+}

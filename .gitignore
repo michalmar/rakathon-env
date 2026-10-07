@@ -1,0 +1,26 @@
+.DS_Store
+
+# Terraform working data and local/remote state
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/backend.hcl
+**/backend_override.tf
+**/terraform.tfvars
+crash.log
+crash.*.log
+
+# Local credentials and secret-bearing files
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.key
+*.keystore
+*.jks
+**/secrets.*
+**/credentials.*
+**/*secret*.json
+**/*credential*.json
