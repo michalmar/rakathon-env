@@ -19,11 +19,12 @@ sdíleném containeru `data`.
   Čtení dat vyžaduje samostatnou data-plane roli `Storage Blob Data Reader`.
 - Přístup přes Azure Portal navíc vyžaduje management-plane roli `Reader`.
   Shared deployment proto pro budoucí týmové skupiny připravuje obě role.
-- Externí anonymní přístup, shared keys a HTTP jsou vypnuté. Storage je dostupný
-  přes veřejný endpoint, ale autentizace probíhá přes Microsoft Entra ID.
-- Pokud je `allowed_ip_ranges` prázdné, endpoint přijímá provoz ze všech sítí.
-  Pokud seznam obsahuje CIDR rozsahy, ostatní veřejné adresy Storage firewall
-  odmítne. Seznam musí zahrnovat veřejnou IP počítače, ze kterého běží Terraform.
+- Externí anonymní přístup, shared keys a HTTP jsou vypnuté. Storage firewall
+  standardně odmítá všechny veřejné sítě; autentizace probíhá přes Microsoft
+  Entra ID.
+- `allowed_ip_ranges` musí zahrnovat veřejnou IP počítače, ze kterého běží
+  Terraform. Zpřístupnění ze všech sítí vyžaduje explicitní nastavení
+  `allow_all_networks = true`.
 - `Standard_LRS` je nákladově úsporná volba pro hackathon, ale nechrání před
   výpadkem celé availability zone. Pro vyšší odolnost změňte replikaci na ZRS.
 
@@ -44,6 +45,8 @@ maximální dostupné subscription quota i platform capacity ve Sweden Central.
 `gpt-6-astra` není nasazený, protože v tomto regionu aktuálně nepodporuje
 `DataZoneStandard`. Foundry local/key autentizace je vypnutá; používejte Entra
 ID a RBAC.
+Veřejný síťový přístup k Foundry je standardně vypnutý a odchozí provoz je
+omezený. Případné povolení nastavte explicitně v `shared/terraform.tfvars`.
 
 ## Požadavky
 

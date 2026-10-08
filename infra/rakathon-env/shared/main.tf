@@ -31,14 +31,10 @@ resource "azurerm_storage_account" "shared" {
   shared_access_key_enabled       = var.shared_access_key_enabled
   allow_nested_items_to_be_public = false
 
-  dynamic "network_rules" {
-    for_each = length(var.allowed_ip_ranges) > 0 ? [1] : []
-
-    content {
-      default_action = "Deny"
-      ip_rules       = var.allowed_ip_ranges
-      bypass         = []
-    }
+  network_rules {
+    default_action = var.allow_all_networks ? "Allow" : "Deny"
+    ip_rules       = var.allowed_ip_ranges
+    bypass         = []
   }
 
   blob_properties {
@@ -70,9 +66,9 @@ resource "azurerm_cognitive_account" "foundry" {
   kind                               = "AIServices"
   sku_name                           = "S0"
   project_management_enabled         = true
-  public_network_access_enabled      = true
+  public_network_access_enabled      = var.foundry_public_network_access_enabled
   local_auth_enabled                 = false
-  outbound_network_access_restricted = false
+  outbound_network_access_restricted = var.foundry_outbound_network_access_restricted
 
   identity {
     type = "SystemAssigned"

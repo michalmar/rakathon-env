@@ -7,9 +7,14 @@ account_replication_type = "LRS"
 storage_use_azuread       = true
 shared_access_key_enabled = false
 
-# Prázdný seznam ponechá veřejný endpoint dostupný ze všech sítí.
-# Pro omezení přidejte veřejné IP rozsahy účastníků a lokálního správce.
+# Prázdný seznam blokuje přístup ze všech veřejných sítí.
+# Pro nasazení přidejte veřejné IP rozsahy účastníků a lokálního správce.
 allowed_ip_ranges = []
+allow_all_networks = false
+
+# Veřejný přístup k Foundry vyžaduje explicitní opt-in.
+foundry_public_network_access_enabled      = false
+foundry_outbound_network_access_restricted = true
 
 # Microsoft Entra object ID. Mohou zůstat prázdné do předání identit.
 customer_data_contributor_object_ids = []

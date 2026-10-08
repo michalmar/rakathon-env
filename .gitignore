@@ -7,8 +7,17 @@
 **/backend.hcl
 **/backend_override.tf
 **/terraform.tfvars
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/*.tfvars.json
+**/*.tfplan
+**/tfplan
 crash.log
 crash.*.log
+
+# Azure CLI configuration must remain outside the repository
+**/.azure/
+**/.azure-*/
 
 # Local credentials and secret-bearing files
 .env

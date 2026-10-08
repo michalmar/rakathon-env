@@ -51,7 +51,7 @@ variable "shared_access_key_enabled" {
 }
 
 variable "allowed_ip_ranges" {
-  description = "Veřejné IPv4 CIDR rozsahy povolené Storage firewallem. Prázdný seznam povolí všechny sítě."
+  description = "Veřejné IPv4 CIDR rozsahy povolené Storage firewallem. Prázdný seznam standardně blokuje všechny sítě."
   type        = list(string)
   default     = []
 
@@ -59,6 +59,12 @@ variable "allowed_ip_ranges" {
     condition     = alltrue([for cidr in var.allowed_ip_ranges : can(cidrhost(cidr, 0))])
     error_message = "Každá položka allowed_ip_ranges musí být platný CIDR rozsah."
   }
+}
+
+variable "allow_all_networks" {
+  description = "Explicitní opt-in pro zpřístupnění Storage ze všech veřejných sítí."
+  type        = bool
+  default     = false
 }
 
 variable "tags" {
