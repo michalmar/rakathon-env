@@ -33,3 +33,6 @@ crash.*.log
 **/credentials.*
 **/*secret*.json
 **/*credential*.json
+
+# Generated Temporary Access Pass handoff files
+**/team-user-access/

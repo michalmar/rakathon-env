@@ -111,19 +111,33 @@ Skript vytvoří nové interní uživatele `team01@<výchozí-doména>`,
 uživatelů; bez argumentu vytvoří jednoho. Existující uživatele nemění a při
 dalším spuštění pokračuje za nejvyšším nalezeným číslem.
 
+### Bash
+
 ```bash
 export AZURE_TENANT_ID="<tenant-id>"
 export SHARED_RESOURCE_GROUP="rg-rakathon-shared"
+export TAP_START_DATETIME="2026-10-09T08:00:00Z"
+export TAP_END_DATETIME="2026-10-09T18:00:00Z"
+
+# Volitelné nastavení:
+export TAP_IS_USABLE_ONCE=true
+export TEAM_USER_OUTPUT_DIR="$PWD/team-user-access"
 
 ./scripts/create-team-users.sh      # vytvoří 1 uživatele
 ./scripts/create-team-users.sh 5    # vytvoří 5 dalších uživatelů
 ```
 
-Stejná funkcionalita je dostupná také pro PowerShell 7:
+### PowerShell 7
 
 ```powershell
 $env:AZURE_TENANT_ID = "<tenant-id>"
 $env:SHARED_RESOURCE_GROUP = "rg-rakathon-shared"
+$env:TAP_START_DATETIME = "2026-10-09T08:00:00Z"
+$env:TAP_END_DATETIME = "2026-10-09T18:00:00Z"
+
+# Volitelné nastavení:
+$env:TAP_IS_USABLE_ONCE = "true"
+$env:TEAM_USER_OUTPUT_DIR = Join-Path $PWD "team-user-access"
 
 ./scripts/create-team-users.ps1           # vytvoří 1 uživatele
 ./scripts/create-team-users.ps1 -Count 5  # vytvoří 5 dalších uživatelů
@@ -135,15 +149,87 @@ Pro každého uživatele skript:
 - přidělí `Contributor` pouze na `rg-teamNN`,
 - přidělí `Storage Blob Data Reader` na `rg-rakathon-shared`,
 - přidělí roli `Foundry User` na `rg-rakathon-shared`; jde o aktuální název
-  původní role `Azure AI User`.
+  původní role `Azure AI User`,
+- vytvoří Temporary Access Pass platný od `TAP_START_DATETIME` do
+  `TAP_END_DATETIME`,
+- uloží jméno, UPN a TAP do samostatného souboru
+  `team-user-access/teamNN.md`.
+
+Příklad vytvořených handoff souborů:
+
+```text
+team-user-access/
+├── team01.md
+├── team02.md
+└── team03.md
+```
 
 Skript respektuje existující nastavení `AZURE_CONFIG_DIR`. Cílový tenant čte
 z `AZURE_TENANT_ID` a název sdílené resource group z
-`SHARED_RESOURCE_GROUP`. Vypíše jednorázové dočasné heslo, které musí uživatel
-při prvním přihlášení změnit. Spouštějící identita potřebuje oprávnění vytvářet
-Entra ID uživatele, resource groups a RBAC role assignments. Skript nepřiděluje
-žádnou roli na subscription scope; případná širší oprávnění zděděná z jiných
-role assignments ale neodebírá.
+`SHARED_RESOURCE_GROUP`. Začátek a konec platnosti TAP jsou povinné UTC hodnoty
+`TAP_START_DATETIME` a `TAP_END_DATETIME` ve formátu
+`YYYY-MM-DDTHH:MM:SSZ`. Rozdíl musí být celé minuty a musí být v rozsahu 10 až
+43200 minut. Volitelně lze nastavit `TAP_IS_USABLE_ONCE` a
+`TEAM_USER_OUTPUT_DIR`.
+
+TAP handoff soubory jsou ve výchozím adresáři ignorované Gitem a obsahují
+citlivé přihlašovací údaje. Každý soubor je určen k bezpečnému předání pouze
+příslušnému uživateli a po předání by měl být odstraněn.
+
+Azure CLI při založení cloudového uživatele technicky vyžaduje password profile;
+skript proto vytvoří náhodné bootstrap heslo, ale nikde je nevypisuje ani
+neukládá a administrátorovi předává pouze TAP.
+
+Spouštějící identita potřebuje oprávnění vytvářet Entra ID uživatele, resource
+groups a RBAC role assignments. Pro vytvoření TAP musí mít podporovanou Entra
+roli, například `Authentication Administrator`, a odpovídající Microsoft Graph
+oprávnění pro zápis TAP. Temporary Access Pass musí být v tenantovi povolený
+authentication methods policy. Skript nepřiděluje žádnou roli na subscription
+scope; případná širší oprávnění zděděná z jiných role assignments ale
+neodebírá.
+
+### Bulk odstranění týmových uživatelů
+
+Mazací skripty vyberou pouze uživatele odpovídající přesnému vzoru
+`teamXX@<výchozí-doména>` a před odstraněním zobrazí jejich seznam. Resource
+groups `rg-teamXX` ani TAP Markdown soubory ve výchozím režimu nemažou. Odstraní
+pouze tři RBAC assignments vytvořené provisioning skriptem a následně
+uživatelské účty.
+
+Bash:
+
+```bash
+./scripts/delete-team-users.sh --all
+```
+
+PowerShell 7:
+
+```powershell
+./scripts/delete-team-users.ps1 -All
+```
+
+Pro odstranění odpovídajících resource groups použijte explicitní přepínač:
+
+```bash
+./scripts/delete-team-users.sh --all --delete-resource-groups
+```
+
+```powershell
+./scripts/delete-team-users.ps1 -All -DeleteResourceGroups
+```
+
+Obě varianty vyžadují potvrzení zadáním přesného textu `DELETE`. Pro
+neinteraktivní spuštění lze kontrolu přeskočit explicitním přepínačem:
+
+```bash
+./scripts/delete-team-users.sh --all --delete-resource-groups --yes
+```
+
+```powershell
+./scripts/delete-team-users.ps1 -All -DeleteResourceGroups -Force
+```
+
+TAP Markdown soubory se nemažou ani při použití přepínače pro resource groups.
 
 ## Bootstrap omezení
 

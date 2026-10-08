@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+umask 077
 
 : "${AZURE_TENANT_ID:?Nastavte proměnnou prostředí AZURE_TENANT_ID.}"
 : "${SHARED_RESOURCE_GROUP:?Nastavte proměnnou prostředí SHARED_RESOURCE_GROUP.}"
+: "${TAP_START_DATETIME:?Nastavte TAP_START_DATETIME ve formátu YYYY-MM-DDTHH:MM:SSZ.}"
+: "${TAP_END_DATETIME:?Nastavte TAP_END_DATETIME ve formátu YYYY-MM-DDTHH:MM:SSZ.}"
 
 CONTRIBUTOR_ROLE_ID="b24988ac-6180-42a0-ab88-20f7382dd24c"
 STORAGE_BLOB_DATA_READER_ROLE_ID="2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
@@ -11,10 +14,56 @@ STORAGE_BLOB_DATA_READER_ROLE_ID="2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
 FOUNDRY_USER_ROLE_ID="53ca6127-db72-4b80-b1b0-d745d6d5456d"
 
 requested_count="${1:-1}"
+tap_is_usable_once="${TAP_IS_USABLE_ONCE:-true}"
+output_directory="${TEAM_USER_OUTPUT_DIR:-${PWD}/team-user-access}"
 
 if [[ ! "${requested_count}" =~ ^[1-9][0-9]*$ ]]; then
   echo "Použití: $0 [počet_nových_uživatelů]" >&2
   echo "Počet musí být kladné celé číslo. Výchozí hodnota je 1." >&2
+  exit 1
+fi
+
+if [[ ! "${TAP_START_DATETIME}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] \
+  || [[ ! "${TAP_END_DATETIME}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+  echo "TAP_START_DATETIME a TAP_END_DATETIME musí být v UTC formátu YYYY-MM-DDTHH:MM:SSZ." >&2
+  exit 1
+fi
+
+if [[ "${tap_is_usable_once}" != "true" && "${tap_is_usable_once}" != "false" ]]; then
+  echo "TAP_IS_USABLE_ONCE musí mít hodnotu true nebo false." >&2
+  exit 1
+fi
+
+parse_utc_datetime() {
+  local value="$1"
+
+  if date --version >/dev/null 2>&1; then
+    date -u -d "${value}" +%s
+  else
+    date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "${value}" +%s
+  fi
+}
+
+if ! tap_start_epoch="$(parse_utc_datetime "${TAP_START_DATETIME}" 2>/dev/null)" \
+  || ! tap_end_epoch="$(parse_utc_datetime "${TAP_END_DATETIME}" 2>/dev/null)"; then
+  echo "TAP_START_DATETIME nebo TAP_END_DATETIME neobsahuje platné datum a čas." >&2
+  exit 1
+fi
+
+tap_lifetime_seconds=$((tap_end_epoch - tap_start_epoch))
+if ((tap_lifetime_seconds <= 0)); then
+  echo "TAP_END_DATETIME musí být později než TAP_START_DATETIME." >&2
+  exit 1
+fi
+
+if ((tap_lifetime_seconds % 60 != 0)); then
+  echo "Rozdíl mezi TAP_START_DATETIME a TAP_END_DATETIME musí být celé minuty." >&2
+  exit 1
+fi
+
+tap_lifetime_minutes=$((tap_lifetime_seconds / 60))
+if ((tap_lifetime_minutes < 10 || tap_lifetime_minutes > 43200)); then
+  echo "Platnost TAP musí být od 10 do 43200 minut." >&2
   exit 1
 fi
 
@@ -25,6 +74,12 @@ fi
 
 if ! az account show >/dev/null 2>&1; then
   echo "Nejprve se přihlaste příkazem: az login" >&2
+  exit 1
+fi
+
+mkdir -p "${output_directory}"
+if [[ ! -w "${output_directory}" ]]; then
+  echo "Výstupní adresář není zapisovatelný: ${output_directory}" >&2
   exit 1
 fi
 
@@ -99,7 +154,7 @@ ensure_role_assignment() {
   exit 1
 }
 
-generate_password() {
+generate_bootstrap_password() {
   local random_part=""
   local random_character
 
@@ -157,14 +212,16 @@ while ((created_count < requested_count)); do
     continue
   fi
 
-  initial_password="$(generate_password)"
+  # Azure CLI vyžaduje při vytvoření cloudového uživatele password profile.
+  # Náhodné bootstrap heslo se nikde nevypisuje ani neukládá; předává se pouze TAP.
+  bootstrap_password="$(generate_bootstrap_password)"
 
   echo "Vytvářím ${user_principal_name}..."
   user_object_id="$(az ad user create \
     --display-name "${team_name}" \
     --user-principal-name "${user_principal_name}" \
-    --password "${initial_password}" \
-    --force-change-password-next-sign-in true \
+    --password "${bootstrap_password}" \
+    --force-change-password-next-sign-in false \
     --query id \
     --output tsv \
     --only-show-errors)"
@@ -202,11 +259,44 @@ while ((created_count < requested_count)); do
     "${shared_rg_id}" \
     "Foundry User (dříve Azure AI User) na ${SHARED_RESOURCE_GROUP}"
 
+  temporary_access_pass="$(az rest \
+    --method post \
+    --url "https://graph.microsoft.com/v1.0/users/${user_object_id}/authentication/temporaryAccessPassMethods" \
+    --headers 'Content-Type=application/json' \
+    --body "{\"startDateTime\":\"${TAP_START_DATETIME}\",\"lifetimeInMinutes\":${tap_lifetime_minutes},\"isUsableOnce\":${tap_is_usable_once}}" \
+    --query temporaryAccessPass \
+    --output tsv \
+    --only-show-errors)"
+
+  if [[ -z "${temporary_access_pass}" || "${temporary_access_pass}" == "null" ]]; then
+    echo "Microsoft Graph nevytvořil Temporary Access Pass pro ${user_principal_name}." >&2
+    exit 1
+  fi
+
+  output_file="${output_directory}/${team_name}.md"
+  if [[ "${tap_is_usable_once}" == "true" ]]; then
+    tap_usage="Ano"
+  else
+    tap_usage="Ne"
+  fi
+
+  cat >"${output_file}" <<EOF
+# Přístup uživatele ${team_name}
+
+- **Jméno:** ${team_name}
+- **UPN:** ${user_principal_name}
+- **Temporary Access Pass (TAP):** ${temporary_access_pass}
+- **Začátek platnosti TAP:** ${TAP_START_DATETIME}
+- **Konec platnosti TAP:** ${TAP_END_DATETIME}
+- **Jednorázový TAP:** ${tap_usage}
+
+Tento soubor obsahuje citlivé přihlašovací údaje. Sdílejte jej pouze s určeným uživatelem a po předání jej bezpečně odstraňte.
+EOF
+
   echo
   echo "Vytvořen uživatel: ${user_principal_name}"
-  echo "Dočasné heslo:     ${initial_password}"
   echo "Vlastní RG:         ${resource_group_name}"
-  echo "Při prvním přihlášení musí uživatel heslo změnit."
+  echo "TAP soubor:         ${output_file}"
   echo
 
   created_count=$((created_count + 1))
