@@ -104,6 +104,47 @@ Pokud později změníte identity:
 - `team_data_reader_object_ids` dostanou `Reader` na shared Storage a
   `Storage Blob Data Reader` na container `data`.
 
+## 4. Týmoví uživatelé
+
+Skript vytvoří nové interní uživatele `team01@<výchozí-doména>`,
+`team02@<výchozí-doména>` a navazující čísla. Jako argument přijímá počet nových
+uživatelů; bez argumentu vytvoří jednoho. Existující uživatele nemění a při
+dalším spuštění pokračuje za nejvyšším nalezeným číslem.
+
+```bash
+export AZURE_TENANT_ID="<tenant-id>"
+export SHARED_RESOURCE_GROUP="rg-rakathon-shared"
+
+./scripts/create-team-users.sh      # vytvoří 1 uživatele
+./scripts/create-team-users.sh 5    # vytvoří 5 dalších uživatelů
+```
+
+Stejná funkcionalita je dostupná také pro PowerShell 7:
+
+```powershell
+$env:AZURE_TENANT_ID = "<tenant-id>"
+$env:SHARED_RESOURCE_GROUP = "rg-rakathon-shared"
+
+./scripts/create-team-users.ps1           # vytvoří 1 uživatele
+./scripts/create-team-users.ps1 -Count 5  # vytvoří 5 dalších uživatelů
+```
+
+Pro každého uživatele skript:
+
+- vytvoří `rg-teamNN` ve stejné lokaci jako `rg-rakathon-shared`,
+- přidělí `Contributor` pouze na `rg-teamNN`,
+- přidělí `Storage Blob Data Reader` na `rg-rakathon-shared`,
+- přidělí roli `Foundry User` na `rg-rakathon-shared`; jde o aktuální název
+  původní role `Azure AI User`.
+
+Skript respektuje existující nastavení `AZURE_CONFIG_DIR`. Cílový tenant čte
+z `AZURE_TENANT_ID` a název sdílené resource group z
+`SHARED_RESOURCE_GROUP`. Vypíše jednorázové dočasné heslo, které musí uživatel
+při prvním přihlášení změnit. Spouštějící identita potřebuje oprávnění vytvářet
+Entra ID uživatele, resource groups a RBAC role assignments. Skript nepřiděluje
+žádnou roli na subscription scope; případná širší oprávnění zděděná z jiných
+role assignments ale neodebírá.
+
 ## Bootstrap omezení
 
 Skript `bootstrap.sh` je určen pro první nasazení z tohoto pracovního počítače.
