@@ -1,6 +1,18 @@
 <policies>
   <inbound>
     <base />
+%{ if force_stream_usage ~}
+    <!-- streaming bez include_usage by se neměřil: vynutíme usage chunk -->
+    <set-body>@{
+        var body = context.Request.Body.As<JObject>(preserveContent: true);
+        if (body["stream"] != null && body["stream"].Type == JTokenType.Boolean && (bool)body["stream"]) {
+            var so = body["stream_options"] as JObject;
+            if (so == null) { so = new JObject(); body["stream_options"] = so; }
+            so["include_usage"] = true;
+        }
+        return body.ToString();
+    }</set-body>
+%{ endif ~}
     <llm-token-limit counter-key="@(context.Subscription.Id)" tokens-per-minute="${tokens_per_minute}" token-quota="${token_quota}" token-quota-period="${token_quota_period}" estimate-prompt-tokens="false" remaining-tokens-header-name="remaining-tokens" tokens-consumed-header-name="consumed-tokens" />
   </inbound>
   <backend>
