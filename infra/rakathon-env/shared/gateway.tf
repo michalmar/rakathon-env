@@ -108,6 +108,7 @@ resource "azurerm_api_management_api_operation_policy" "ops" {
     tokens_per_minute  = var.apim_tokens_per_minute
     token_quota        = var.apim_token_quota
     token_quota_period = var.apim_token_quota_period
+    force_stream_usage = each.key == "chat"
     }) : templatefile("${path.module}/policies/image.xml.tftpl", {
     calls_per_minute = var.apim_image_calls_per_minute
     foundry_base_url = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"

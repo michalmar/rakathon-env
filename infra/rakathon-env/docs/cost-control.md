@@ -68,6 +68,6 @@ Po celkovém revoke musí organizátor zvednout `overall_budget_usd` (nebo zkrá
 - Workbook: https://portal.azure.com/#@7f0c84c5-bbea-48b2-bad1-6baf63d0c73c/resource/subscriptions/83ae1511-eee9-469a-8c48-b9a9069b92e4/resourceGroups/rg-rakathon-shared/providers/Microsoft.Insights/workbooks/f5920510-b0d4-8016-9769-62d82c9f5c51/workbook
 - Ověřeno end-to-end s malými rozpočty (týmové 2 USD, celkový 2 USD): varování 90 % (alert + e-mail), suspend týmu při 100 %, suspend všech `team*` při překročení celkového limitu, ruční reaktivace. Po reaktivaci může gateway ještě 1–2 minuty vracet 401 (cache stavu subscription).
 - Job je fail-open: když dotaz do LAW selže, nic se neblokuje; hlídá to alert `job-stalled`.
-- Neověřeno: streamovaná volání bez `stream_options.include_usage` mohou logovat 0 tokenů (neměřená cesta) – doporučeno vynutit usage u klientů.
+- Streaming: policy na `chat/completions` při `stream=true` vynutí `stream_options.include_usage=true` (ověřeno 2026-10-10: streamovaný požadavek bez volby je v `ApiManagementGatewayLlmLog` s tokeny). `/responses` nemá `stream_options`; usage je součástí události `response.completed`.
 - Testovací alerty rozeslaly e-maily na produkční adresy.
 - `apim-findings.md` popisuje starý stav: wildcard operace `/*` byly odstraněny a denní kvóta je nyní 4 M tokenů.

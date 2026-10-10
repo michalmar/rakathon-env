@@ -67,7 +67,7 @@ resource "azurerm_cognitive_account" "foundry" {
   sku_name                           = "S0"
   project_management_enabled         = true
   public_network_access_enabled      = var.foundry_public_network_access_enabled
-  local_auth_enabled                 = true
+  local_auth_enabled                 = false
   outbound_network_access_restricted = var.foundry_outbound_network_access_restricted
 
   identity {

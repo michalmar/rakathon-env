@@ -75,4 +75,4 @@ az rest --method delete --url "$B/subscriptions/team01?$V"
 `master` je vestavěná all-access subscription – nepoužívat pro týmy.
 
 ## Stav
-`ops-test` ponechána **suspended** (klíč v tomto repu není; získat přes `listSecrets` a před testem `active`). `ops-test2` smazána. Foundry `local_auth_enabled` zůstává `true` (cutover dělá S4). Pozor: `terraform apply` také přináší již existující drift `network_rules` úložiště.
+`ops-test` ponechána **suspended** (klíč v tomto repu není; získat přes `listSecrets` a před testem `active`). `ops-test2` smazána. Foundry `local_auth_enabled` je od S4 cutoveru `false` (přímé volání Foundry starým klíčem → 401, `az cognitiveservices account keys list` selže; APIM přes MI funguje). Pozor: `terraform apply` také přináší již existující drift `network_rules` úložiště.

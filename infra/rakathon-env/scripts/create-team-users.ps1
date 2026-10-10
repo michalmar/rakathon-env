@@ -452,7 +452,7 @@ curl -s "$apimOpenAiUrl/chat/completions" \
   -d '{"model":"<název deploymentu>","messages":[{"role":"user","content":"Ahoj!"}]}'
 ``````
 
-Při streamování (``stream: true``) přidejte ``"stream_options": {"include_usage": true}``, jinak se spotřeba tokenů nezapočítá správně.
+Při streamování (``stream: true``) gateway sama zapne ``stream_options.include_usage``, takže spotřeba se započítá vždy.
 
 Tento soubor obsahuje citlivé přihlašovací údaje. Sdílejte jej pouze s určeným uživatelem a po předání jej bezpečně odstraňte.
 "@

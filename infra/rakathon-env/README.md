@@ -7,10 +7,11 @@ Aktuální rozsah tvoří dva oddělené Terraform deploymenty:
   veřejný Microsoft Foundry resource, Foundry project a model deploymenty;
   také obsahuje Static Web Apps Standard a Entra autentizaci účastnického portálu.
 
-Týmové resource groups ani Entra ID uživatelé se zatím nevytvářejí.
-Budoucí model počítá s jednou Entra security group na tým, rolí `Contributor`
-jen na vlastní týmové resource group a rolí `Storage Blob Data Reader` na
-sdíleném containeru `data`.
+Týmy vznikají skripty `create-team-users` (Entra uživatel `teamNN`, resource
+group `rg-teamNN`, role `Contributor` na vlastní RG, `Storage Blob Data Reader`
+na sdílené RG a APIM subscription `teamNN`). Modely se volají výhradně přes
+Azure API Management gateway; týmy nemají žádný přístup přímo do Foundry.
+Rozpočty, měření a blokace viz [`docs/cost-control.md`](docs/cost-control.md).
 
 ## Validace návrhu
 
@@ -47,8 +48,10 @@ Data Zone modely používají kapacitu `3333`. Global deploymenty používají
 subscription maxima ověřená 2026-10-09: `10000` pro grok, Astra a DeepSeek,
 `2000` pro Kimi a `1500` pro MAI-Thinking, tedy po 1000 TPM na jednotku.
 `MAI-Image-2.5` používá maximum `10` image requests/minute; nejde o tokenový
-model. Foundry local/key autentizace je povolená; lze použít API klíč i
-Microsoft Entra ID s RBAC. Storage shared keys tím nejsou povolené.
+model. Foundry local/key autentizace je **vypnutá** (`local_auth_enabled =
+false`): žádný sdílený Foundry klíč neexistuje a přímé volání Foundry vrací
+401. Jediná cesta k modelům je APIM gateway (managed identity APIM má
+na Foundry roli). Storage shared keys také nejsou povolené.
 Veřejný síťový přístup k Foundry je standardně vypnutý a odchozí provoz je
 omezený. Případné povolení nastavte explicitně v `shared/terraform.tfvars`.
 
@@ -290,6 +293,64 @@ je vratné a klíč zůstává stejný (účinek do cca 10 s).
 `--all` / `all` zahrnuje všechny subscriptions produktu `hackathon` mimo
 provozní `ops-*`. Skripty používají `SHARED_RESOURCE_GROUP` a volitelně
 `APIM_NAME`.
+
+## Provozní runbook (den akce)
+
+Klient volá `https://apim-rakathon-q7146n.azure-api.net/openai/v1`
+s hlavičkou `api-key: <klíč týmu>`; `model` je název deploymentu. Limity: $5 000
+celkem (hard stop s rezervou), $1 000 na tým, 4 M tokenů denně na tým, TPM limit
+na subscription. Podrobnosti v [`docs/cost-control.md`](docs/cost-control.md),
+návrh a zjištěná omezení v [`docs/apim-findings.md`](docs/apim-findings.md).
+Streamované požadavky gateway automaticky doplní `stream_options.include_usage`,
+takže se spotřeba měří vždy.
+
+### Checklist před akcí
+
+1. `export AZURE_CONFIG_DIR="$HOME/.azure-rak"` a přihlášení do tenantu
+   `7f0c84c5-bbea-48b2-bad1-6baf63d0c73c`.
+2. V `shared/terraform.tfvars` nastavte `budget_window_start` na začátek akce
+   (UTC, např. `2026-10-14T07:00:00Z`) – spotřeba před ním se nepočítá. Případně
+   upravte `overall_budget_usd`/`team_budget_usd`. Poté `terraform apply`.
+3. Vytvořte týmy (`create-team-users.sh N`, viz výše; TAP okno nastavte na dobu
+   akce). Vyžaduje roli typu Authentication Administrator.
+4. Ověřte `./scripts/set-team-access.sh status` (všechny týmy `active`) a jedno
+   testovací volání klíčem z `teamNN.md`.
+5. Rozdejte soubory `team-user-access/teamNN.md` (obsahují TAP i klíč; po předání
+   je bezpečně smažte). Portál ukazuje jen endpoint a deploymenty, žádné klíče.
+
+### Kde sledovat spotřebu
+
+- Workbook „Hackathon – náklady a rozpočty“: odkaz je v
+  `terraform -chdir=shared output cost_workbook_url`.
+- Tabulka v terminálu: `./scripts/team-usage.sh` (tým × deployment, součty vůči
+  rozpočtům; data mají zpoždění cca 3 min).
+- E-maily na action group `ag-rakathon-budget` (3 příjemci): varování při 90 %,
+  oznámení o blokaci při 100 % (tým i celek) a alert, když přestane běžet cost
+  job (Logic App `logic-rakathon-costjob`, každých 5 min).
+
+### Blokace, obnovení a navýšení rozpočtu
+
+- Ruční blokace/obnova: `set-team-access.sh teamNN off|on`, `--all off|on`
+  (viz výše). Klíč zůstává stejný.
+- Automatická blokace při 100 % týmového rozpočtu i při dosažení celkového
+  limitu (celkový limit mínus rezerva $200) – cost job suspenduje subscriptions.
+- Hard cap: ručně znovu aktivovaný tým bude cost jobem opět zablokován, dokud
+  nenavýšíte rozpočet. Navýšení týmu: do `team_budget_overrides` v
+  `terraform.tfvars` přidejte `teamNN = <USD>`, nebo zvyšte `team_budget_usd` /
+  `overall_budget_usd`, `terraform apply` a poté `set-team-access.sh teamNN on`.
+- Nouzové vypnutí všeho: `set-team-access.sh --all off`.
+
+### Náklady v klidu a ukončení
+
+APIM BasicV2 stojí ≈ $0.27/h (≈ $6,5/den) i bez provozu, SWA Standard a Log
+Analytics se platí také. Po akci proveďte:
+
+1. `./scripts/delete-team-users.sh --all --delete-resource-groups`
+   (smaže uživatele, RBAC, APIM subscriptions a `rg-teamNN`).
+2. Smažte `team-user-access/*.md`.
+3. `terraform -chdir=shared destroy` (odstraní APIM, Foundry s deploymenty,
+   portál i monitoring). Pro krátkou pauzu lze alespoň zablokovat týmy
+   (`set-team-access.sh --all off`), ale APIM se dál účtuje.
 
 ## Bootstrap omezení
 
