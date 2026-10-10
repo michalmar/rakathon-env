@@ -198,3 +198,33 @@ variable "tags" {
     scope       = "shared"
   }
 }
+
+variable "ai_gateway_name" {
+  description = "Název APIM AI Gateway. Prázdné = aigw-<project>-<suffix>."
+  type        = string
+  default     = ""
+}
+
+variable "ai_gateway_api_version" {
+  description = "API verze Microsoft.ApiManagement (AI Gateway tier je preview)."
+  type        = string
+  default     = "2025-09-01-preview"
+}
+
+variable "ai_gateway_publisher_email" {
+  description = "Publisher e-mail pro APIM."
+  type        = string
+  default     = "noreply@microsoft.com"
+}
+
+variable "ai_gateway_tokens_per_minute" {
+  description = "Limit tokenů za minutu na klíč (tým) a model."
+  type        = number
+  default     = 200000
+}
+
+variable "ai_gateway_tokens_per_day" {
+  description = "Limit tokenů za den na klíč (tým) a model."
+  type        = number
+  default     = 20000000
+}

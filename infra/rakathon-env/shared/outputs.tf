@@ -66,3 +66,28 @@ output "portal_auth_secret_expires_at" {
   description = "Expirace přihlašovacího secretu; před tímto datem proveďte rotaci Terraformem."
   value       = azuread_application_password.portal.end_date
 }
+
+output "ai_gateway_name" {
+  description = "Název APIM AI Gateway."
+  value       = azapi_resource.gateway.name
+}
+
+output "ai_gateway_id" {
+  description = "ARM ID APIM AI Gateway."
+  value       = azapi_resource.gateway.id
+}
+
+output "ai_gateway_url" {
+  description = "Klientský base URL (OpenAI-kompatibilní) přes AI Gateway."
+  value       = "${azapi_resource.gateway.output.properties.gatewayUrl}/default/models/openai/v1"
+}
+
+output "ai_gateway_appinsights_id" {
+  description = "ARM ID Application Insights s telemetrií gateway."
+  value       = azapi_resource.gateway_appinsights.id
+}
+
+output "ai_gateway_law_id" {
+  description = "ARM ID Log Analytics workspace."
+  value       = azurerm_log_analytics_workspace.gateway.id
+}
