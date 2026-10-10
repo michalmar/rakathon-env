@@ -1,9 +1,11 @@
 # Rakathon účastnický portál
 
-Jednoduchá statická SPA v TypeScriptu a Vite, bez Functions, MSAL, serverového
-API nebo volání Azure z prohlížeče. Zobrazuje deploymenty Foundry, kopírovatelné
-APIM gateway endpoint (OpenAI v1) a názvy deploymentů. Portál **nezobrazuje
-žádné API klíče**; klíč týmu je v handoff souboru `teamNN.md`. Karty
+Statická SPA v TypeScriptu a Vite, bez MSAL a bez volání Azure z prohlížeče.
+Zobrazuje deploymenty Foundry, kopírovatelný APIM gateway endpoint (OpenAI v1)
+a názvy deploymentů. Jediné dynamické volání je `GET /api/my-key` (Function
+v `infra/rakathon-env/functions/my-key`, připojená k SWA), která přihlášenému
+týmu (`teamNN@…`) vrátí jeho vlastní APIM klíč; statický katalog klíče
+neobsahuje. Záloha: handoff soubor `teamNN.md`. Karty
 rozlišují Global Standard a EU Data Zone a zobrazují poskytovatele modelu. Dále
 zobrazuje seznam souborů v `strakathondataq7146n/data` a návod ke stažení
 v Azure Portalu. Soubory nestahuje a SAS odkazy negeneruje.
@@ -45,20 +47,24 @@ neobsahuje tento development bypass.
 
 ## API klíče a přístup týmů
 
-Portál klíče **neexportuje ani nepublikuje**. Dříve sdílený klíč Foundry se do
+Katalog klíče **neexportuje ani nepublikuje**. Klíč týmu se po přihlášení
+načítá za běhu z `/api/my-key` (UPN `teamNN@…` → APIM subscription `teamNN`),
+drží se jen v paměti stránky, je maskovaný (zobrazit/kopírovat) a odpověď má
+`Cache-Control: no-store`. Účty mimo týmy dostanou hlášku bez klíče; při
+zablokování rozpočtem se ukáže stav „zablokováno – rozpočet“. Dříve sdílený klíč Foundry se do
 katalogu nedostává a soubor `public/catalog-keys.json` už neexistuje (export jej
 při spuštění smaže a build selže, pokud se objeví). Modely se volají přes APIM
 gateway `https://apim-rakathon-q7146n.azure-api.net/openai/v1`; `model` v těle
 je název deploymentu. Každý tým má vlastní APIM subscription `teamNN` a klíč,
-který dostane v handoff souboru `team-user-access/teamNN.md` vygenerovaném
-skriptem `create-team-users`. Klíč se posílá v hlavičce `api-key`
+který vidí v portálu a také dostane v handoff souboru
+`team-user-access/teamNN.md` vygenerovaném skriptem `create-team-users`. Klíč se posílá v hlavičce `api-key`
 (OpenAI SDK: `default_headers={"api-key": KEY}`).
 
 Rozpočet týmu je 1 000 USD: při 90 % přijde upozornění, při 100 % se přístup
 zablokuje (suspend subscription). Správce přístup týmu vypne/obnoví příkazem
 `infra/rakathon-env/scripts/set-team-access.sh teamNN on|off` (viz README
-infrastruktury). Portál s tím nemá nic společného – jen zobrazuje endpoint a
-odkazuje na handoff soubor.
+infrastruktury). Portál přístup nemění, jen zobrazuje stav subscription.
+Backend `my-key` se nasazuje zvlášť (`infra/rakathon-env/scripts/deploy-my-key.sh`).
 
 ## Azure Static Web Apps a Easy Auth
 
@@ -120,7 +126,7 @@ v Entra enterprise application.
 ## Aktualizace a ověření
 
 Po změně deploymentů nebo souborů znovu spusťte export a build a znovu
-publikujte `dist`. Export klíče nečte; účastníci nepotřebují žádná oprávnění
+publikujte `dist`. Export klíče nečte (klíč týmu čte až Function `my-key`); účastníci nepotřebují žádná oprávnění
 k Foundry ani APIM.
 
 ```bash

@@ -106,3 +106,8 @@ output "cost_workbook_url" {
   description = "Odkaz na Azure Monitor Workbook s náklady (vyžaduje přístup do Azure Portal tenantu)."
   value       = "https://portal.azure.com/#@7f0c84c5-bbea-48b2-bad1-6baf63d0c73c/resource${azurerm_application_insights_workbook.costs.id}/workbook"
 }
+
+output "my_key_function_name" {
+  description = "Function app (my-key), která vrací API klíč přihlášeného týmu; kód nasazuje scripts/deploy-my-key.sh."
+  value       = azurerm_linux_function_app.my_key.name
+}

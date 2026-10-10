@@ -1,8 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
+import { environment } from "../src/catalog";
 import { catalogFixture, userFixture } from "./fixtures";
 
-async function prepare(page: Page, catalog = catalogFixture(), user: unknown = userFixture()) {
+const teamKeyFixture = { team: "team07", key: "FAKE-KEY", state: "active", baseUrl: `https://${environment.gatewayService}.azure-api.net/openai/v1` };
+
+async function prepare(page: Page, catalog = catalogFixture(), user: unknown = userFixture(), keyStatus = 200, keyBody: unknown = teamKeyFixture) {
   let keyRequests = 0;
+  let myKeyRequests = 0;
+  await page.route("**/api/my-key", (route) => {
+    myKeyRequests += 1;
+    return route.fulfill({ status: keyStatus, json: keyBody });
+  });
   let catalogRequests = 0;
   await page.route("**/.auth/me", (route) => route.fulfill({ json: user }));
   await page.route("**/catalog.json", (route) => {
@@ -19,7 +27,7 @@ async function prepare(page: Page, catalog = catalogFixture(), user: unknown = u
       value: { writeText: async (value: string) => { Reflect.set(window, "testClipboard", value); } },
     });
   });
-  return { keyRequests: () => keyRequests, catalogRequests: () => catalogRequests };
+  return { keyRequests: () => keyRequests, myKeyRequests: () => myKeyRequests, catalogRequests: () => catalogRequests };
 }
 
 async function openFirstModel(page: Page) {
@@ -68,13 +76,50 @@ test("filtruje soubory a prázdný výsledek vysvětlí", async ({ page }) => {
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
 });
 
-test("API klíč se nikdy nenačítá ani nezobrazuje; portál odkazuje na handoff soubor", async ({ page }) => {
+test("klíč týmu je maskovaný, lze ho zobrazit a zkopírovat; statický katalog klíče nenačítá", async ({ page }) => {
   const requests = await prepare(page);
   await page.goto("/");
-  await openFirstModel(page);
-  await expect(page.getByText("teamNN.md", { exact: false }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: /klíč/ })).toHaveCount(0);
+  const section = page.locator("#klic");
+  await expect(section.getByRole("heading", { name: "Váš API klíč" })).toBeVisible();
+  await expect(section.getByText("Tým team07")).toBeVisible();
+  await expect(section.getByText("aktivní", { exact: true })).toBeVisible();
+  await expect(section.locator(".key-value")).not.toContainText(teamKeyFixture.key);
+  await section.getByRole("button", { name: "Zobrazit API klíč" }).click();
+  await expect(section.locator(".key-value")).toHaveText(teamKeyFixture.key);
+  await section.getByRole("button", { name: "Skrýt API klíč" }).click();
+  await expect(section.locator(".key-value")).not.toContainText(teamKeyFixture.key);
+  await section.getByRole("button", { name: "Kopírovat API klíč" }).click();
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(teamKeyFixture.key);
+  await expect(section.getByText("openai/v1", { exact: false }).first()).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(`${teamKeyFixture.key}\n`);
   expect(requests.keyRequests()).toBe(0);
+  expect(requests.myKeyRequests()).toBe(1);
+});
+
+test("zablokovaný tým vidí stav a vysvětlení", async ({ page }) => {
+  await prepare(page, catalogFixture(), userFixture(), 200, { ...teamKeyFixture, state: "suspended" });
+  await page.goto("/");
+  await expect(page.locator("#klic").getByText("zablokováno – rozpočet")).toBeVisible();
+  await expect(page.locator("#klic").getByText("vyčerpán rozpočet", { exact: false })).toBeVisible();
+});
+
+test("účet mimo tým dostane vysvětlení bez klíče", async ({ page }) => {
+  await prepare(page, catalogFixture(), userFixture(), 404, { error: "no-team" });
+  await page.goto("/");
+  await expect(page.locator("#klic").getByText("Tento účet není týmový", { exact: false })).toBeVisible();
+  await expect(page.locator("#klic").getByRole("button", { name: /API klíč/ })).toHaveCount(0);
+  await expect(page.locator(".model-card")).toHaveCount(2);
+});
+
+test("chyba služby klíče nerozbije katalog a nabídne opakování", async ({ page }) => {
+  const requests = await prepare(page, catalogFixture(), userFixture(), 502, { error: "upstream-error" });
+  await page.goto("/");
+  await expect(page.locator("#klic").getByText("Klíč se nepodařilo načíst", { exact: false })).toBeVisible();
+  await expect(page.locator(".model-card")).toHaveCount(2);
+  await page.route("**/api/my-key", (route) => route.fulfill({ json: teamKeyFixture }));
+  await page.locator("#klic").getByRole("button", { name: "Zkusit znovu" }).click();
+  await expect(page.locator("#klic").getByText("Tým team07")).toBeVisible();
+  expect(requests.myKeyRequests()).toBe(1);
 });
 
 test("chybu schránky viditelně oznámí", async ({ page }) => {
