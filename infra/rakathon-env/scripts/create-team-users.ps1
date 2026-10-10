@@ -417,6 +417,7 @@ while ($createdCount -lt $Count) {
 
 - **Base URL:** $apimOpenAiUrl
 - **API klíč týmu:** $teamApimKey
+- Stejný klíč uvidíte po přihlášení tímto účtem i v portálu (sekce „Váš API klíč“).
 - **Hlavička:** ``api-key: <klíč>`` (``Authorization: Bearer`` gateway nepřijímá)
 - **Rozpočet:** $TeamBudgetUsd USD na tým. Při 90 % dostanete upozornění, při 100 % se přístup zablokuje (HTTP 401).
 - Klíč začne platit přibližně do 1 minuty po vytvoření. V ``model`` uvádějte název deploymentu.

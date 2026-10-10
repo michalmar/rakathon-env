@@ -117,6 +117,31 @@ vracejí outputs `portal_url`, `portal_name`, `portal_auth_client_id` a
 `portal_auth_secret_expires_at`. Publikování aplikace popisuje
 [`web/README.md`](../../web/README.md).
 
+### Self-service API klíč (Function `my-key`)
+
+Přihlášený tým vidí svůj APIM klíč v portálu (sekce „Váš API klíč“). Zajišťuje
+to Function app `func-rakathon-key-<suffix>` (Linux Consumption, Node 22,
+`shared/my_key.tf`), připojená k SWA jako vlastní backend
+(`azurerm_static_web_app_function_app_registration`), endpoint `GET /api/my-key`:
+
+- SWA předá `x-ms-client-principal`; funkce z UPN vezme část před `@`, musí
+  odpovídat `^team\d{2}$` (jinak `404 {"error":"no-team"}`, bez principalu `401`)
+  a přes managed identity přečte APIM subscription téhož jména (musí patřit do
+  produktu `hackathon`) a její `primaryKey`. Odpověď
+  `{team, key, state, baseUrl}` má `Cache-Control: no-store`, klíč se nelogují.
+- Managed identity má jen custom roli „Rakathon APIM Team Key Reader“ na APIM
+  (`subscriptions/read`, `subscriptions/listSecrets/action`), žádnou širší.
+- Přímé volání `https://func-…azurewebsites.net/api/my-key` mimo SWA vrací `401`
+  (Easy Auth nastavený registrací backendu), takže cizí `x-ms-client-principal`
+  nelze podvrhnout. Portál (`/*`) zůstává jen pro přihlášené.
+- Kód nasazujte po `terraform apply` (a po změně kódu) příkazem
+  `./scripts/deploy-my-key.sh` (zip deploy; vyžaduje `az`, `npm`, `zip`).
+  `WEBSITE_RUN_FROM_PACKAGE` nastavuje deploy, Terraform ho ignoruje.
+- Testy: `cd functions/my-key && npm install && npm test`.
+- Náklady v klidu: Consumption plán ≈ $0 (platí se za volání) plus drobný
+  storage účet `stfn…` (centavy); funkce má vlastní storage, protože datový účet
+  má vypnuté sdílené klíče, které Consumption runtime vyžaduje.
+
 Při přidávání portálu úplný plán ukázal i nesouvisející změnu Storage
 `network_rules`. Pro tuto konkrétní aktualizaci je připravený cílený plán pro
 `azurerm_cognitive_account.foundry`, `azuread_application_redirect_uris.portal`
@@ -316,7 +341,11 @@ takže se spotřeba měří vždy.
 4. Ověřte `./scripts/set-team-access.sh status` (všechny týmy `active`) a jedno
    testovací volání klíčem z `teamNN.md`.
 5. Rozdejte soubory `team-user-access/teamNN.md` (obsahují TAP i klíč; po předání
-   je bezpečně smažte). Portál ukazuje jen endpoint a deploymenty, žádné klíče.
+   je bezpečně smažte). Klíč týmu vidí po přihlášení UPN `teamNN@…` také
+   portál (sekce „Váš API klíč“ – zobrazit/kopírovat, stav aktivní / zablokováno –
+   rozpočet); `teamNN.md` je záloha. Účty mimo `teamNN` (organizátoři, `ops-*`)
+   klíč v portálu nedostanou.
+6. Po `terraform apply` nezapomeňte nasadit i funkci: `./scripts/deploy-my-key.sh`.
 
 ### Kde sledovat spotřebu
 
@@ -343,7 +372,7 @@ takže se spotřeba měří vždy.
 ### Náklady v klidu a ukončení
 
 APIM BasicV2 stojí ≈ $0.27/h (≈ $6,5/den) i bez provozu, SWA Standard a Log
-Analytics se platí také. Po akci proveďte:
+Analytics se platí také (Function `my-key` na Consumption plánu ≈ $0). Po akci proveďte:
 
 1. `./scripts/delete-team-users.sh --all --delete-resource-groups`
    (smaže uživatele, RBAC, APIM subscriptions a `rg-teamNN`).

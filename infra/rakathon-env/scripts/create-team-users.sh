@@ -352,6 +352,7 @@ while ((created_count < requested_count)); do
 
 - **Base URL:** ${apim_openai_url}
 - **API klíč týmu:** ${team_apim_key}
+- Stejný klíč uvidíte po přihlášení tímto účtem i v portálu (sekce „Váš API klíč“).
 - **Hlavička:** \`api-key: <klíč>\` (\`Authorization: Bearer\` gateway nepřijímá)
 - **Rozpočet:** ${TEAM_BUDGET_USD} USD na tým. Při 90 % dostanete upozornění, při 100 % se přístup zablokuje (HTTP 401).
 - Klíč začne platit přibližně do 1 minuty po vytvoření. V \`model\` uvádějte název deploymentu.

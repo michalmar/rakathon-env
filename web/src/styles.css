@@ -429,6 +429,31 @@ h3 {
 .status-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--cp-success); }
 .status-pending { color: var(--cp-warning); }
 .status-pending::before { background: var(--cp-warning); }
+.status-blocked { color: var(--cp-danger); }
+.status-blocked::before { background: var(--cp-danger); }
+.key-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--cp-border);
+  border-radius: 20px;
+  background: var(--cp-surface);
+  box-shadow: var(--cp-shadow-soft);
+}
+.key-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.key-card .connection-value { grid-template-columns: minmax(0, 1fr) auto auto; }
+.key-card .portal-guide { margin-top: 20px; }
+.key-value { overflow-wrap: anywhere; letter-spacing: 0.04em; }
+.code-example {
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  background: var(--cp-surface-soft);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+.key-message + .button { margin-top: 4px; }
 .connection-field + .connection-field { margin-top: 17px; }
 .field-label { display: block; margin-bottom: 7px; color: var(--cp-text-muted); font-size: 0.7rem; font-weight: 700; }
 .connection-value {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseUser } from "../src/auth";
 import { environment, formatSize, parseCatalog, portalUrl } from "../src/catalog";
+import { curlExample, maskKey, parseTeamKey, loadTeamKey } from "../src/key";
 import { catalogFixture, userFixture } from "./fixtures";
 
 describe("statický katalog", () => {
@@ -91,5 +92,38 @@ describe("Easy Auth", () => {
     expect(config.globalHeaders["Cache-Control"]).toContain("no-store");
     expect(config.globalHeaders["Content-Security-Policy"]).toContain("script-src 'self'");
     expect(config.globalHeaders["Content-Security-Policy"]).not.toContain("unsafe-inline");
+  });
+});
+
+describe("klíč týmu", () => {
+  const valid = { team: "team07", key: "abc", state: "active", baseUrl: `https://${environment.gatewayService}.azure-api.net/openai/v1` };
+
+  it("přijme platnou odpověď a normalizuje stav", () => {
+    expect(parseTeamKey(valid).state).toBe("active");
+    expect(parseTeamKey({ ...valid, state: "suspended" }).state).toBe("suspended");
+    expect(parseTeamKey({ ...valid, state: "submitted" }).state).toBe("other");
+  });
+
+  it("odmítne neplatný tým, prázdný klíč a cizí base URL", () => {
+    for (const bad of [{ team: "ops-test" }, { team: "team7" }, { key: "" }, { baseUrl: "https://evil.example/openai/v1" }, { baseUrl: "http://x" }]) {
+      expect(() => parseTeamKey({ ...valid, ...bad })).toThrow();
+    }
+    expect(() => parseTeamKey(null)).toThrow();
+  });
+
+  it("mapuje HTTP stavy na stavy UI", async () => {
+    const respond = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as typeof fetch;
+    expect((await loadTeamKey(respond(200, valid))).status).toBe("ok");
+    expect((await loadTeamKey(respond(404, { error: "no-team" }))).status).toBe("no-team");
+    expect((await loadTeamKey(respond(401, {}))).status).toBe("unauthenticated");
+    expect((await loadTeamKey(respond(502, {}))).status).toBe("error");
+    expect((await loadTeamKey(respond(200, { team: "x" }))).status).toBe("error");
+    expect((await loadTeamKey((async () => { throw new Error("net"); }) as typeof fetch)).status).toBe("error");
+  });
+
+  it("maskuje klíč a příklad neobsahuje tajemství", () => {
+    expect(maskKey("abc")).not.toContain("abc");
+    expect(maskKey("x".repeat(100))).toHaveLength(32);
+    expect(curlExample(valid.baseUrl)).toContain("$API_KEY");
   });
 });

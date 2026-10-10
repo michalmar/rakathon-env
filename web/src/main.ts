@@ -1,5 +1,6 @@
 import "./styles.css";
 import { parseUser } from "./auth";
+import { curlExample, loadTeamKey, maskKey, pythonExample, type KeyResult, type TeamKey } from "./key";
 import {
   environment, formatDate, formatSize, parseCatalog, portalUrl,
   type Catalog, type DataFile, type ModelDeployment,
@@ -180,12 +181,93 @@ function modelCard(model: ModelDeployment, catalog: Catalog): HTMLElement {
 
   const keyField = element("div", "connection-field key-field");
   keyField.append(element("span", "field-label", "API klíč"));
-  const keyNote = element("p", "key-unavailable", "Klíč vašeho týmu je v předaném souboru teamNN.md (hlavička api-key).");
+  const keyNote = element("p", "key-unavailable", "Klíč vašeho týmu najdete výše v sekci „Váš API klíč“ (hlavička api-key).");
   keyNote.prepend(icon("lock"));
   keyField.append(keyNote);
   body.append(keyField);
   card.append(summary, body);
   return card;
+}
+
+function keyStateBadge(state: TeamKey["state"]): HTMLElement {
+  if (state === "active") return element("span", "status-tag", "aktivní");
+  if (state === "suspended") return element("span", "status-tag status-blocked", "zablokováno – rozpočet");
+  return element("span", "status-tag status-pending", "neznámý stav");
+}
+
+function keyMessage(text: string, iconName: keyof typeof icons = "lock"): HTMLElement {
+  const note = element("div", "auth-notice key-message");
+  note.append(icon(iconName), element("p", "", text));
+  return note;
+}
+
+function keyCard(team: TeamKey): HTMLElement {
+  const card = element("div", "key-card");
+  const head = element("div", "key-card-head");
+  head.append(element("h3", "", `Tým ${team.team}`), keyStateBadge(team.state));
+  card.append(head);
+  if (team.state === "suspended") {
+    card.append(keyMessage("Přístup týmu je zablokovaný, protože byl vyčerpán rozpočet. Klíč zůstává stejný; po odblokování organizátory začne znovu fungovat.", "zone"));
+  }
+  let revealed = false;
+  const field = element("div", "connection-field");
+  const row = element("div", "connection-value");
+  const value = element("code", "copy-value key-value", maskKey(team.key));
+  value.setAttribute("aria-label", "API klíč (skrytý)");
+  const reveal = action("Zobrazit API klíč", "eye", () => {
+    revealed = !revealed;
+    value.textContent = revealed ? team.key : maskKey(team.key);
+    value.setAttribute("aria-label", revealed ? "API klíč" : "API klíč (skrytý)");
+    reveal.setAttribute("aria-label", revealed ? "Skrýt API klíč" : "Zobrazit API klíč");
+    reveal.title = reveal.getAttribute("aria-label") ?? "";
+  });
+  row.append(value, reveal, action("Kopírovat API klíč", "copy", () => {
+    copy(team.key, "API klíč").catch(() => notify("Kopírování se nezdařilo. Klíč zobrazte a zkopírujte jej ručně.", true));
+  }));
+  field.append(element("span", "field-label", "API klíč (hlavička api-key)"), row);
+  card.append(field, copyField("Base URL (OpenAI v1)", team.baseUrl, "Kopírovat base URL"));
+  const example = element("details", "portal-guide");
+  example.append(element("summary", "", "Příklad volání (curl / Python)"));
+  example.append(element("p", "guide-note", "Do proměnné prostředí API_KEY vložte svůj klíč; <deployment> nahraďte názvem nasazeného modelu."));
+  example.append(element("pre", "code-example", curlExample(team.baseUrl)), element("pre", "code-example", pythonExample(team.baseUrl)));
+  card.append(example);
+  return card;
+}
+
+function keySection(): HTMLElement {
+  const section = element("section", "content-section");
+  section.id = "klic";
+  section.setAttribute("aria-labelledby", "key-heading");
+  const header = element("div", "section-heading");
+  const title = element("div");
+  const heading = element("h2", "", "Váš API klíč");
+  heading.id = "key-heading";
+  title.append(heading, element("p", "section-description", "Klíč je vázaný na váš tým a platí pro všechny modely přes APIM gateway."));
+  header.append(title);
+  const content = element("div", "key-content");
+  content.setAttribute("aria-live", "polite");
+  content.append(element("p", "key-unavailable", "Načítám klíč vašeho týmu…"));
+  section.append(header, content);
+  const fallback = "Klíč týmu najdete také v předaném souboru teamNN.md.";
+  function show(result: KeyResult): void {
+    if (result.status === "ok") {
+      content.replaceChildren(keyCard(result.key));
+    } else if (result.status === "no-team") {
+      content.replaceChildren(keyMessage(`Tento účet není týmový, proto pro něj klíč neexistuje. ${fallback}`));
+    } else if (result.status === "unauthenticated") {
+      content.replaceChildren(keyMessage("Přihlášení vypršelo. Přihlaste se znovu a stránku načtěte znovu."));
+    } else {
+      const retry = element("button", "button primary-button", "Zkusit znovu");
+      retry.type = "button";
+      retry.addEventListener("click", load);
+      content.replaceChildren(keyMessage(`Klíč se nepodařilo načíst. ${fallback}`), retry);
+    }
+  }
+  function load(): void {
+    loadTeamKey().then(show).catch(() => show({ status: "error" }));
+  }
+  load();
+  return section;
 }
 
 function fileRow(file: DataFile): HTMLTableRowElement {
@@ -291,7 +373,10 @@ function render(catalog: Catalog, user: string): void {
   dataLink.href = "#data";
   dataLink.prepend(icon("files"));
   dataLink.append(element("span", "nav-count", String(catalog.storage.files.length)));
-  nav.append(modelsLink, dataLink);
+  const keyLink = element("a", "nav-link", "Váš API klíč");
+  keyLink.href = "#klic";
+  keyLink.prepend(icon("lock"));
+  nav.append(keyLink, modelsLink, dataLink);
   sidebar.append(nav);
   const access = element("div", "sidebar-access");
   access.append(icon("lock"), element("p", "", "Jen pro Rakathon tenant"));
@@ -336,13 +421,13 @@ function render(catalog: Catalog, user: string): void {
   models.append(header);
   const message = element("div", "auth-notice");
   message.append(icon("lock"), element("p", "",
-    "Modely volejte přes APIM gateway. Každý tým má vlastní klíč v předaném souboru teamNN.md; pošlete jej v hlavičce api-key. Tým má rozpočet 1 000 USD – při 90 % upozornění, při 100 % se přístup zablokuje."));
+    "Modely volejte přes APIM gateway. Každý tým má vlastní klíč (viz „Váš API klíč“ výše, záloha: soubor teamNN.md); pošlete jej v hlavičce api-key. Tým má rozpočet 1 000 USD – při 90 % upozornění, při 100 % se přístup zablokuje."));
   models.append(message);
   const cards = element("div", "models-grid");
   cards.append(...catalog.foundry.models.map((model) => modelCard(model, catalog)));
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
-  main.append(models, storageSection(catalog));
+  main.append(keySection(), models, storageSection(catalog));
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Katalog nevolá Azure API ani negeneruje SAS odkazy."));
