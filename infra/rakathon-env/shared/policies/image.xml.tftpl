@@ -1,0 +1,18 @@
+<policies>
+  <inbound>
+    <base />
+    <!-- MAI image modely mají vlastní cestu mimo /openai/v1 -->
+    <set-backend-service base-url="${foundry_base_url}" />
+    <rewrite-uri template="/mai/v1/images/generations" copy-unmatched-params="false" />
+    <rate-limit-by-key calls="${calls_per_minute}" renewal-period="60" counter-key="@(context.Subscription.Id)" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

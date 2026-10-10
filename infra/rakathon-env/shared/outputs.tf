@@ -67,27 +67,27 @@ output "portal_auth_secret_expires_at" {
   value       = azuread_application_password.portal.end_date
 }
 
-output "ai_gateway_name" {
-  description = "Název APIM AI Gateway."
-  value       = azapi_resource.gateway.name
+output "apim_name" {
+  description = "Název APIM (BasicV2) před sdílenými Foundry modely."
+  value       = azurerm_api_management.gateway.name
 }
 
-output "ai_gateway_id" {
-  description = "ARM ID APIM AI Gateway."
-  value       = azapi_resource.gateway.id
+output "apim_id" {
+  description = "ARM ID APIM."
+  value       = azurerm_api_management.gateway.id
 }
 
-output "ai_gateway_url" {
-  description = "Klientský base URL (OpenAI-kompatibilní) přes AI Gateway."
-  value       = "${azapi_resource.gateway.output.properties.gatewayUrl}/default/models/openai/v1"
+output "apim_url" {
+  description = "Klientský base URL (OpenAI v1); `model` v těle = název deploymentu."
+  value       = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
 }
 
-output "ai_gateway_appinsights_id" {
-  description = "ARM ID Application Insights s telemetrií gateway."
-  value       = azapi_resource.gateway_appinsights.id
+output "apim_product_id" {
+  description = "ID produktu hackathon (pro zakládání subscription týmů)."
+  value       = azurerm_api_management_product.hackathon.product_id
 }
 
-output "ai_gateway_law_id" {
-  description = "ARM ID Log Analytics workspace."
+output "apim_law_id" {
+  description = "ARM ID Log Analytics workspace s logy APIM."
   value       = azurerm_log_analytics_workspace.gateway.id
 }

@@ -199,32 +199,38 @@ variable "tags" {
   }
 }
 
-variable "ai_gateway_name" {
-  description = "Název APIM AI Gateway. Prázdné = aigw-<project>-<suffix>."
+variable "apim_name" {
+  description = "Název APIM. Prázdné = apim-<project>-<suffix>."
   type        = string
   default     = ""
 }
 
-variable "ai_gateway_api_version" {
-  description = "API verze Microsoft.ApiManagement (AI Gateway tier je preview)."
-  type        = string
-  default     = "2025-09-01-preview"
-}
-
-variable "ai_gateway_publisher_email" {
+variable "apim_publisher_email" {
   description = "Publisher e-mail pro APIM."
   type        = string
   default     = "noreply@microsoft.com"
 }
 
-variable "ai_gateway_tokens_per_minute" {
-  description = "Limit tokenů za minutu na klíč (tým) a model."
+variable "apim_tokens_per_minute" {
+  description = "Limit tokenů za minutu na subscription (tým)."
   type        = number
   default     = 200000
 }
 
-variable "ai_gateway_tokens_per_day" {
-  description = "Limit tokenů za den na klíč (tým) a model."
+variable "apim_token_quota" {
+  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period."
   type        = number
   default     = 20000000
+}
+
+variable "apim_token_quota_period" {
+  description = "Perioda kvóty: Hourly, Daily, Weekly, Monthly, Yearly."
+  type        = string
+  default     = "Daily"
+}
+
+variable "apim_image_calls_per_minute" {
+  description = "Limit požadavků na generování obrázků za minutu na subscription (tým)."
+  type        = number
+  default     = 30
 }

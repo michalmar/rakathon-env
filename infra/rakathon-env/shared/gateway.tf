@@ -1,12 +1,10 @@
-# AI Gateway (APIM tier AIGateway, preview) před sdílenými Foundry modely.
-# Runtime API klíče (jeden na tým) se zakládají skripty, ne Terraformem.
+# APIM BasicV2 (GA) před sdílenými Foundry modely. Jedna APIM subscription na tým;
+# subscription (teamNN) zakládají skripty, ne Terraform.
 
 locals {
-  ai_gateway_name = var.ai_gateway_name != "" ? var.ai_gateway_name : "aigw-${var.project_name_compact}-${random_string.storage_suffix.result}"
-  gateway_policies = [
-    { type = "tokenLimit", period = "minute", count = var.ai_gateway_tokens_per_minute, counterKey = ["identity"] },
-    { type = "tokenLimit", period = "day", count = var.ai_gateway_tokens_per_day, counterKey = ["identity"] },
-  ]
+  apim_name = var.apim_name != "" ? var.apim_name : "apim-${var.project_name_compact}-${random_string.storage_suffix.result}"
+  # Endpoint s custom subdoménou, OpenAI v1 povrch
+  foundry_openai_v1_url = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com/openai/v1"
 }
 
 resource "azurerm_log_analytics_workspace" "gateway" {
@@ -18,183 +16,144 @@ resource "azurerm_log_analytics_workspace" "gateway" {
   tags                = var.tags
 }
 
-resource "azapi_resource" "gateway_appinsights" {
-  type      = "Microsoft.Insights/components@2020-02-02"
-  name      = "appi-${var.project_name_compact}-${random_string.storage_suffix.result}"
-  parent_id = azurerm_resource_group.shared.id
-  location  = azurerm_resource_group.shared.location
-  tags      = var.tags
-
-  schema_validation_enabled = false
-
-  body = {
-    kind = "web"
-    properties = {
-      Application_Type                   = "web"
-      WorkspaceResourceId                = azurerm_log_analytics_workspace.gateway.id
-      AzureMonitorWorkspaceIngestionMode = "Enabled"
-    }
-  }
-
-  response_export_values = [
-    "properties.OTLPLogsEndpoint",
-    "properties.OTLPMetricsEndpoint",
-    "properties.OTLPTracesEndpoint",
-    "properties.AppId",
-    "properties.DataCollectionRuleResourceId",
-  ]
-}
-
-resource "azapi_resource" "gateway" {
-  type      = "Microsoft.ApiManagement/service@${var.ai_gateway_api_version}"
-  name      = local.ai_gateway_name
-  parent_id = azurerm_resource_group.shared.id
-  location  = azurerm_resource_group.shared.location
-  tags      = var.tags
-
-  schema_validation_enabled = false
+resource "azurerm_api_management" "gateway" {
+  name                = local.apim_name
+  location            = azurerm_resource_group.shared.location
+  resource_group_name = azurerm_resource_group.shared.name
+  publisher_name      = "Rakathon"
+  publisher_email     = var.apim_publisher_email
+  sku_name            = "BasicV2_1"
+  tags                = var.tags
 
   identity {
     type = "SystemAssigned"
   }
-
-  body = {
-    sku = {
-      name     = "AIGateway"
-      capacity = 1
-    }
-    properties = {
-      publisherEmail = var.ai_gateway_publisher_email
-      publisherName  = "Rakathon"
-    }
-  }
-
-  response_export_values = ["properties.gatewayUrl"]
 }
 
-resource "azapi_resource" "gateway_connector_namespace" {
-  type      = "Microsoft.Web/connectorGateways@2026-05-01-preview"
-  name      = local.ai_gateway_name
-  parent_id = azurerm_resource_group.shared.id
-  location  = azurerm_resource_group.shared.location
-
-  schema_validation_enabled = false
-
-  body       = { properties = {} }
-  depends_on = [azapi_resource.gateway]
-}
-
-resource "azurerm_role_assignment" "gateway_foundry_user" {
+resource "azurerm_role_assignment" "apim_foundry_user" {
   scope                = azurerm_cognitive_account.foundry.id
   role_definition_name = "Foundry User"
-  principal_id         = azapi_resource.gateway.identity[0].principal_id
+  principal_id         = azurerm_api_management.gateway.identity[0].principal_id
 }
 
-resource "azurerm_role_assignment" "gateway_metrics_publisher" {
-  scope                = azapi_resource.gateway_appinsights.id
-  role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = azapi_resource.gateway.identity[0].principal_id
-}
+resource "azurerm_api_management_api" "openai" {
+  name                  = "openai-v1"
+  resource_group_name   = azurerm_resource_group.shared.name
+  api_management_name   = azurerm_api_management.gateway.name
+  revision              = "1"
+  display_name          = "Foundry OpenAI v1"
+  path                  = "openai/v1"
+  protocols             = ["https"]
+  subscription_required = true
 
-# Managed DCR leží v chráněné RG; role assignment (stejně jako v portálu) funguje.
-resource "azurerm_role_assignment" "gateway_dcr_publisher" {
-  scope                = azapi_resource.gateway_appinsights.output.properties.DataCollectionRuleResourceId
-  role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = azapi_resource.gateway.identity[0].principal_id
-}
-
-resource "azapi_resource" "gateway_telemetry" {
-  type      = "Microsoft.ApiManagement/service/workspaces/telemetryExporters@${var.ai_gateway_api_version}"
-  name      = "appinsights"
-  parent_id = "${azapi_resource.gateway.id}/workspaces/default"
-
-  schema_validation_enabled = false
-
-  body = {
-    properties = {
-      kind           = "OpenTelemetry"
-      payloadCapture = false
-      applicationInsights = {
-        resourceId = azapi_resource.gateway_appinsights.id
-      }
-      openTelemetry = {
-        logsEndpoint    = azapi_resource.gateway_appinsights.output.properties.OTLPLogsEndpoint
-        metricsEndpoint = azapi_resource.gateway_appinsights.output.properties.OTLPMetricsEndpoint
-        tracesEndpoint  = azapi_resource.gateway_appinsights.output.properties.OTLPTracesEndpoint
-      }
-    }
+  subscription_key_parameter_names {
+    header = "api-key"
+    query  = "api-key"
   }
-
-  depends_on = [azurerm_role_assignment.gateway_metrics_publisher, azurerm_role_assignment.gateway_dcr_publisher]
 }
 
-resource "azapi_resource" "gateway_foundry_provider" {
-  type      = "Microsoft.ApiManagement/service/workspaces/modelProviders@${var.ai_gateway_api_version}"
-  name      = azurerm_cognitive_account.foundry.name
-  parent_id = "${azapi_resource.gateway.id}/workspaces/default"
-
-  schema_validation_enabled = false
-
-  body = {
-    properties = {
-      kind        = "Foundry"
-      displayName = azurerm_cognitive_account.foundry.name
-      description = "Foundry provider pro ${azurerm_cognitive_account.foundry.name}"
-      foundry = {
-        endpoint    = azurerm_cognitive_account.foundry.endpoint
-        resourceIds = [azurerm_cognitive_account.foundry.id]
-        authentication = {
-          kind = "ManagedIdentity"
-          managedIdentity = {
-            resource = "https://cognitiveservices.azure.com/"
-          }
-        }
-      }
-    }
-  }
-
-  depends_on = [azurerm_role_assignment.gateway_foundry_user]
-}
-
-data "azapi_resource" "deployment_capabilities" {
-  for_each = var.foundry_model_deployments
-
-  type        = "Microsoft.CognitiveServices/accounts/deployments@2025-06-01"
-  resource_id = azurerm_cognitive_deployment.models[each.key].id
-
-  response_export_values = ["properties.capabilities"]
+resource "azurerm_api_management_api_policy" "openai" {
+  api_name            = azurerm_api_management_api.openai.name
+  api_management_name = azurerm_api_management.gateway.name
+  resource_group_name = azurerm_resource_group.shared.name
+  xml_content         = templatefile("${path.module}/policies/api.xml.tftpl", { backend_url = local.foundry_openai_v1_url })
 }
 
 locals {
-  gateway_model_endpoints = {
-    for k, d in data.azapi_resource.deployment_capabilities : k => concat(
-      try(d.output.properties.capabilities.chatCompletion, "false") == "true" ? ["/openai/v1/chat/completions"] : [],
-      try(d.output.properties.capabilities.responses, "false") == "true" ? ["/openai/v1/responses"] : [],
-      try(d.output.properties.capabilities.imageGenerations, "false") == "true" ? ["/openai/v1/images/generations"] : [],
-    )
+  apim_operations = {
+    chat       = { method = "POST", url = "/chat/completions", policy = "llm" }
+    responses  = { method = "POST", url = "/responses", policy = "llm" }
+    images     = { method = "POST", url = "/images/generations", policy = "image" }
+    models     = { method = "GET", url = "/models", policy = null }
+    get_any    = { method = "GET", url = "/*", policy = null }
+    post_any   = { method = "POST", url = "/*", policy = null }
+    delete_any = { method = "DELETE", url = "/*", policy = null }
   }
 }
 
-resource "azapi_resource" "gateway_models" {
-  for_each = var.foundry_model_deployments
+resource "azurerm_api_management_api_operation" "ops" {
+  for_each = local.apim_operations
 
-  type      = "Microsoft.ApiManagement/service/workspaces/modelProviders/models@${var.ai_gateway_api_version}"
-  name      = each.key
-  parent_id = azapi_resource.gateway_foundry_provider.id
+  operation_id        = replace(each.key, "_", "-")
+  api_name            = azurerm_api_management_api.openai.name
+  api_management_name = azurerm_api_management.gateway.name
+  resource_group_name = azurerm_resource_group.shared.name
+  display_name        = "${each.value.method} ${each.value.url}"
+  method              = each.value.method
+  url_template        = each.value.url
 
-  schema_validation_enabled = false
+  response {
+    status_code = 200
+  }
+}
+
+resource "azurerm_api_management_api_operation_policy" "ops" {
+  for_each = { for k, v in local.apim_operations : k => v if v.policy != null }
+
+  api_name            = azurerm_api_management_api.openai.name
+  api_management_name = azurerm_api_management.gateway.name
+  resource_group_name = azurerm_resource_group.shared.name
+  operation_id        = azurerm_api_management_api_operation.ops[each.key].operation_id
+
+  xml_content = each.value.policy == "llm" ? templatefile("${path.module}/policies/llm.xml.tftpl", {
+    tokens_per_minute  = var.apim_tokens_per_minute
+    token_quota        = var.apim_token_quota
+    token_quota_period = var.apim_token_quota_period
+    }) : templatefile("${path.module}/policies/image.xml.tftpl", {
+    calls_per_minute = var.apim_image_calls_per_minute
+    foundry_base_url = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"
+  })
+}
+
+resource "azurerm_api_management_product" "hackathon" {
+  product_id            = "hackathon"
+  api_management_name   = azurerm_api_management.gateway.name
+  resource_group_name   = azurerm_resource_group.shared.name
+  display_name          = "Hackathon"
+  subscription_required = true
+  approval_required     = false
+  published             = true
+}
+
+resource "azurerm_api_management_product_api" "hackathon" {
+  api_name            = azurerm_api_management_api.openai.name
+  product_id          = azurerm_api_management_product.hackathon.product_id
+  api_management_name = azurerm_api_management.gateway.name
+  resource_group_name = azurerm_resource_group.shared.name
+}
+
+# Logy gateway do LAW (resource-specific tabulky)
+resource "azurerm_monitor_diagnostic_setting" "apim" {
+  name                           = "to-law"
+  target_resource_id             = azurerm_api_management.gateway.id
+  log_analytics_workspace_id     = azurerm_log_analytics_workspace.gateway.id
+  log_analytics_destination_type = "Dedicated"
+
+  enabled_log {
+    category = "GatewayLogs"
+  }
+
+  enabled_log {
+    category = "GatewayLlmLogs"
+  }
+}
+
+# LLM logy (tokeny) zapíná až diagnostika služby – azurerm to neumí; diagnostika azuremonitor v APIM už existuje
+resource "azapi_update_resource" "apim_diagnostic" {
+  type        = "Microsoft.ApiManagement/service/diagnostics@2024-06-01-preview"
+  resource_id = "${azurerm_api_management.gateway.id}/diagnostics/azuremonitor"
 
   body = {
     properties = {
-      displayName        = each.key
-      apiFormat          = each.value.model_format
-      supportedEndpoints = local.gateway_model_endpoints[each.key]
-      deployment = {
-        resourceId   = azurerm_cognitive_deployment.models[each.key].id
-        modelName    = each.value.model_name
-        modelVersion = each.value.model_version
+      loggerId    = "${azurerm_api_management.gateway.id}/loggers/azuremonitor"
+      logClientIp = true
+      sampling = {
+        samplingType = "fixed"
+        percentage   = 100
       }
-      policies = local.gateway_policies
+      largeLanguageModel = {
+        logs = "enabled"
+      }
     }
   }
 }
