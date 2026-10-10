@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseUser } from "../src/auth";
-import { environment, formatSize, parseCatalog, parseCatalogKeys, portalUrl } from "../src/catalog";
-import { catalogFixture, keysFixture, userFixture } from "./fixtures";
+import { environment, formatSize, parseCatalog, portalUrl } from "../src/catalog";
+import { catalogFixture, userFixture } from "./fixtures";
 
 describe("statický katalog", () => {
   it("přijme úplný snapshot a správně formátuje velikosti", () => {
@@ -20,16 +20,17 @@ describe("statický katalog", () => {
     expect(() => parseCatalog(catalog)).toThrow("storage account");
   });
 
-  it("odmítne nebezpečný nebo neodpovídající endpoint", () => {
+  it("odmítne nebezpečný nebo neodpovídající gateway endpoint", () => {
     for (const endpoint of [
       "javascript:alert(1)",
       "https://example.com/openai/v1/",
-      `https://${environment.foundryAccount}.openai.azure.com.attacker.example/openai/v1/`,
-      `https://${environment.foundryAccount}.openai.azure.com/openai/v1/?key=unexpected`,
-      `http://${environment.foundryAccount}.openai.azure.com/openai/v1/`,
+      `https://${environment.foundryAccount}.openai.azure.com/openai/v1/`,
+      `https://${environment.gatewayService}.azure-api.net.attacker.example/openai/v1/`,
+      `https://${environment.gatewayService}.azure-api.net/openai/v1/?key=unexpected`,
+      `http://${environment.gatewayService}.azure-api.net/openai/v1/`,
     ]) {
       const catalog = catalogFixture();
-      catalog.foundry.endpoint = endpoint;
+      catalog.gateway.endpoint = endpoint;
       expect(() => parseCatalog(catalog)).toThrow("endpoint");
     }
   });
@@ -47,21 +48,10 @@ describe("statický katalog", () => {
     expect(() => parseCatalog(unsupportedFormat)).toThrow("nepodporovaný formát");
   });
 
-  it("nepovolí klíč, když je autentizace klíčem vypnutá", () => {
+  it("odmítne katalog s klíčovými poli z dřívější verze", () => {
     const catalog = catalogFixture();
-    catalog.foundry.keyIncluded = true;
-    expect(() => parseCatalog(catalog)).toThrow("vypnuté");
-  });
-
-  it("váže klíč na stejné Foundry a generaci katalogu", () => {
-    const catalog = catalogFixture();
-    catalog.foundry.keyAuthenticationEnabled = true;
-    catalog.foundry.keyIncluded = true;
-    const keys = keysFixture(catalog);
-    expect(parseCatalogKeys(keys, catalog).apiKey).toBe("test-only-not-a-real-credential");
-    expect(() => parseCatalogKeys({ ...keys, generatedAt: "2026-10-08T08:00:00.000Z" }, catalog)).toThrow("různých exportů");
-    expect(() => parseCatalogKeys({ ...keys, foundryResourceId: "/another-resource" }, catalog)).toThrow("resource ID");
-    expect(() => parseCatalogKeys({ ...keys, apiKey: null }, catalog)).toThrow("dostupnost");
+    Reflect.set(catalog.foundry, "keyIncluded", true);
+    expect(() => parseCatalog(catalog)).toThrow("neznámé pole");
   });
 
   it("vede Portal do správného tenantu a resource", () => {

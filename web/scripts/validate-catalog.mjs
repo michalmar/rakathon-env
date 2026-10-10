@@ -1,11 +1,11 @@
 import { readFile, readdir } from "node:fs/promises";
-import { environment, parseCatalog, parseCatalogKeys } from "../src/catalog.ts";
+import { environment, parseCatalog } from "../src/catalog.ts";
 
 try {
   const catalog = parseCatalog(JSON.parse(await readFile(new URL("../public/catalog.json", import.meta.url), "utf8")));
   const publicFiles = await readdir(new URL("../public/", import.meta.url));
-  if (catalog.foundry.keyIncluded || publicFiles.includes("catalog-keys.json")) {
-    parseCatalogKeys(JSON.parse(await readFile(new URL("../public/catalog-keys.json", import.meta.url), "utf8")), catalog);
+  if (publicFiles.includes("catalog-keys.json")) {
+    throw new Error("public/catalog-keys.json nesmí existovat; klíče týmů se nepublikují. Smažte ho.");
   }
   const config = JSON.parse(await readFile(new URL("../public/staticwebapp.config.json", import.meta.url), "utf8"));
   const provider = config.auth?.identityProviders?.azureActiveDirectory?.registration;
@@ -19,6 +19,6 @@ try {
   ) throw new Error("SWA konfigurace nechrání celý statický katalog správným tenantem.");
   console.log("Snapshot a tenant-specific ochrana statických souborů jsou připravené.");
 } catch (error) {
-  console.error(`Build zastaven: ${error.message}\nPřed buildem spusťte npm run catalog:refresh (případně catalog:refresh:keys).`);
+  console.error(`Build zastaven: ${error.message}\nPřed buildem spusťte npm run catalog:refresh.`);
   process.exitCode = 1;
 }

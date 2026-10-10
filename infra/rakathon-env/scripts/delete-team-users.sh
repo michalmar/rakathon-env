@@ -7,7 +7,7 @@ set -euo pipefail
 
 CONTRIBUTOR_ROLE_ID="b24988ac-6180-42a0-ab88-20f7382dd24c"
 STORAGE_BLOB_DATA_READER_ROLE_ID="2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
-FOUNDRY_USER_ROLE_ID="53ca6127-db72-4b80-b1b0-d745d6d5456d"
+APIM_API_VERSION="2024-05-01"
 
 delete_all=false
 skip_confirmation=false
@@ -65,6 +65,16 @@ if [[ -z "${tenant_domain}" || "${tenant_domain}" == "null" ]]; then
   exit 1
 fi
 
+azure_subscription_id="$(az account show --query id --output tsv)"
+apim_name="${APIM_NAME:-$(az apim list \
+  --resource-group "${SHARED_RESOURCE_GROUP}" \
+  --query '[0].name' --output tsv --only-show-errors)}"
+if [[ -z "${apim_name}" || "${apim_name}" == "null" ]]; then
+  echo "APIM instance nenalezena v ${SHARED_RESOURCE_GROUP}. Nastavte APIM_NAME." >&2
+  exit 1
+fi
+apim_base="https://management.azure.com/subscriptions/${azure_subscription_id}/resourceGroups/${SHARED_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${apim_name}"
+
 shared_rg_id="$(az group show \
   --name "${SHARED_RESOURCE_GROUP}" \
   --query id \
@@ -106,6 +116,7 @@ if [[ "${delete_resource_groups}" == "true" ]]; then
 else
   echo "Resource groups odstraněny nebudou."
 fi
+echo "Budou odstraněny také jejich APIM subscriptions (klíče přestanou platit)."
 echo "TAP Markdown soubory odstraněny nebudou."
 
 if [[ "${skip_confirmation}" != "true" ]]; then
@@ -172,11 +183,11 @@ for index in "${!user_ids[@]}"; do
     "${STORAGE_BLOB_DATA_READER_ROLE_ID}" \
     "${shared_rg_id}" \
     "Storage Blob Data Reader na ${SHARED_RESOURCE_GROUP}"
-  delete_role_assignment \
-    "${user_id}" \
-    "${FOUNDRY_USER_ROLE_ID}" \
-    "${shared_rg_id}" \
-    "Foundry User na ${SHARED_RESOURCE_GROUP}"
+  az rest --method delete \
+    --url "${apim_base}/subscriptions/${team_name}?api-version=${APIM_API_VERSION}" \
+    --output none --only-show-errors 2>/dev/null \
+    && echo "  Odstraněna APIM subscription ${team_name}." \
+    || echo "  APIM subscription ${team_name} neexistovala nebo ji nelze smazat."
 
   az ad user delete \
     --id "${user_id}" \

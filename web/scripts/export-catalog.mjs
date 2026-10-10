@@ -4,7 +4,7 @@ import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { environment, parseCatalog, parseCatalogKeys } from "../src/catalog.ts";
+import { environment, parseCatalog } from "../src/catalog.ts";
 
 const publicDirectory = fileURLToPath(new URL("../public/", import.meta.url));
 
@@ -33,7 +33,7 @@ export function runAzure(args) {
   }
 }
 
-export function createSnapshot(run = runAzure, includeKeys = false, generatedAt = new Date().toISOString()) {
+export function createSnapshot(run = runAzure, generatedAt = new Date().toISOString()) {
   const subscription = ["--subscription", environment.subscriptionId];
   const account = run(["account", "show", ...subscription, "--query", "{id:id,tenantId:tenantId}"]);
   if (account.id !== environment.subscriptionId || account.tenantId !== environment.tenantId) {
@@ -58,24 +58,11 @@ export function createSnapshot(run = runAzure, includeKeys = false, generatedAt 
     "[].{name:name,size:properties.contentLength,lastModified:properties.lastModified,contentType:properties.contentSettings.contentType}",
   ]);
 
-  const baseEndpoint = foundry.properties?.endpoints?.["OpenAI Language Model Instance API"]
-    || foundry.properties?.endpoints?.["Azure OpenAI Legacy API - Latest moniker"];
-  if (!baseEndpoint) throw new Error("Foundry nevrátilo OpenAI endpoint. Export nebyl uložen.");
-  if (typeof foundry.properties?.disableLocalAuth !== "boolean") {
-    throw new Error("Foundry nevrátilo stav klíčové autentizace. Export nebyl uložen.");
-  }
-  const keyAuthenticationEnabled = !foundry.properties.disableLocalAuth;
-  let apiKey = null;
-  if (includeKeys && keyAuthenticationEnabled) {
-    const keys = run([
-      "cognitiveservices", "account", "keys", "list", "--name", environment.foundryAccount,
-      "--resource-group", environment.resourceGroup, ...subscription,
-    ]);
-    if (typeof keys.key1 !== "string" || keys.key1.length === 0) {
-      throw new Error("Foundry nevrátilo primární API klíč. Export nebyl uložen.");
-    }
-    apiKey = keys.key1;
-  }
+  const apim = run([
+    "apim", "show", "--name", environment.gatewayService,
+    "--resource-group", environment.resourceGroup, ...subscription,
+  ]);
+  if (typeof apim.gatewayUrl !== "string") throw new Error("APIM nevrátilo gateway URL. Export nebyl uložen.");
   const catalog = parseCatalog({
     schemaVersion: 1,
     generatedAt,
@@ -86,9 +73,6 @@ export function createSnapshot(run = runAzure, includeKeys = false, generatedAt 
       name: foundry.name,
       resourceId: foundry.id,
       location: foundry.location,
-      endpoint: new URL("openai/v1/", baseEndpoint).href,
-      keyAuthenticationEnabled,
-      keyIncluded: apiKey !== null,
       models: deployments.map((deployment) => ({
         deployment: deployment.name,
         model: deployment.properties?.model?.name,
@@ -98,6 +82,11 @@ export function createSnapshot(run = runAzure, includeKeys = false, generatedAt 
         sku: deployment.sku?.name,
         capacity: deployment.sku?.capacity,
       })).sort((a, b) => a.deployment.localeCompare(b.deployment)),
+    },
+    gateway: {
+      name: apim.name,
+      resourceId: apim.id,
+      endpoint: new URL("openai/v1/", apim.gatewayUrl).href,
     },
     storage: {
       name: storage.name,
@@ -110,13 +99,7 @@ export function createSnapshot(run = runAzure, includeKeys = false, generatedAt 
       })).sort((a, b) => a.name.localeCompare(b.name, "cs")),
     },
   });
-  const keys = parseCatalogKeys({
-    schemaVersion: 1,
-    generatedAt,
-    foundryResourceId: catalog.foundry.resourceId,
-    apiKey,
-  }, catalog);
-  return { catalog, keys };
+  return { catalog };
 }
 
 async function atomicWrite(path, value) {
@@ -134,22 +117,17 @@ async function atomicWrite(path, value) {
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--help")) {
-    console.log("Použití: node scripts/export-catalog.mjs [--include-keys]\nPouze čte Azure; soubory ani SAS odkazy nestahuje.");
+    console.log("Použití: node scripts/export-catalog.mjs\nPouze čte Azure; soubory, klíče ani SAS odkazy nestahuje.");
     return;
   }
-  if (args.some((arg) => arg !== "--include-keys")) throw new Error("Neznámý argument. Použijte --help.");
-  const { catalog, keys } = createSnapshot(runAzure, args.includes("--include-keys"));
+  if (args.length > 0) throw new Error("Neznámý argument. Použijte --help.");
+  const { catalog } = createSnapshot(runAzure);
   await mkdir(publicDirectory, { recursive: true });
-  await atomicWrite(join(publicDirectory, "catalog-keys.json"), keys);
   await atomicWrite(join(publicDirectory, "catalog.json"), catalog);
+  await unlink(join(publicDirectory, "catalog-keys.json")).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+  });
   console.log(`Katalog uložen: ${catalog.foundry.models.length} modelů, ${catalog.storage.files.length} souborů.`);
-  if (!catalog.foundry.keyAuthenticationEnabled) {
-    console.log("Foundry má vypnutou autentizaci klíčem. Žádný klíč nebyl načten ani exportován.");
-  } else if (keys.apiKey) {
-    console.log("Klíč je pouze v ignorovaném catalog-keys.json. Deployujte výhradně za Easy Auth.");
-  } else {
-    console.log("Klíč nebyl exportován. Pro jeho zahrnutí použijte --include-keys.");
-  }
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

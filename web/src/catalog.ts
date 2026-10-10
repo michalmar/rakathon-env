@@ -3,6 +3,7 @@ export const environment = {
   subscriptionId: "83ae1511-eee9-469a-8c48-b9a9069b92e4",
   resourceGroup: "rg-rakathon-shared",
   foundryAccount: "ais-rakathon-q7146n",
+  gatewayService: "apim-rakathon-q7146n",
   storageAccount: "strakathondataq7146n",
   container: "data",
 } as const;
@@ -34,10 +35,12 @@ export interface Catalog {
     name: string;
     resourceId: string;
     location: string;
-    endpoint: string;
-    keyAuthenticationEnabled: boolean;
-    keyIncluded: boolean;
     models: ModelDeployment[];
+  };
+  gateway: {
+    name: string;
+    resourceId: string;
+    endpoint: string;
   };
   storage: {
     name: string;
@@ -46,13 +49,6 @@ export interface Catalog {
     sharedKeyAccessEnabled: boolean;
     files: DataFile[];
   };
-}
-
-export interface CatalogKeys {
-  schemaVersion: 1;
-  generatedAt: string;
-  foundryResourceId: string;
-  apiKey: string | null;
 }
 
 function invalid(label: string): never {
@@ -105,30 +101,31 @@ function expectedText(value: unknown, expected: string, label: string): string {
 }
 
 function endpoint(value: unknown): string {
-  const input = text(value, "Foundry endpoint");
+  const input = text(value, "gateway endpoint");
   let url: URL;
   try {
     url = new URL(input);
   } catch {
-    return invalid("Foundry endpoint");
+    return invalid("gateway endpoint");
   }
   if (
     url.protocol !== "https:" ||
-    url.hostname !== `${environment.foundryAccount}.openai.azure.com` ||
+    url.hostname !== `${environment.gatewayService}.azure-api.net` ||
     url.pathname !== "/openai/v1/" ||
     url.username || url.password || url.port || url.search || url.hash
-  ) invalid("Foundry endpoint");
+  ) invalid("gateway endpoint");
   return url.href;
 }
 
 export function parseCatalog(value: unknown): Catalog {
   const root = object(value, "hlavička", [
-    "schemaVersion", "generatedAt", "tenantId", "subscriptionId", "resourceGroup", "foundry", "storage",
+    "schemaVersion", "generatedAt", "tenantId", "subscriptionId", "resourceGroup", "foundry", "gateway", "storage",
   ]);
   if (root.schemaVersion !== 1) invalid("verze formátu");
   const foundry = object(root.foundry, "Foundry", [
-    "name", "resourceId", "location", "endpoint", "keyAuthenticationEnabled", "keyIncluded", "models",
+    "name", "resourceId", "location", "models",
   ]);
+  const gateway = object(root.gateway, "gateway", ["name", "resourceId", "endpoint"]);
   const storage = object(root.storage, "storage", [
     "name", "resourceId", "container", "sharedKeyAccessEnabled", "files",
   ]);
@@ -161,9 +158,6 @@ export function parseCatalog(value: unknown): Catalog {
   });
   if (new Set(models.map((model) => model.deployment)).size !== models.length) invalid("duplicitní deployment");
   if (new Set(files.map((file) => file.name)).size !== files.length) invalid("duplicitní soubor");
-  const keyAuthenticationEnabled = boolean(foundry.keyAuthenticationEnabled, "autentizace klíčem");
-  const keyIncluded = boolean(foundry.keyIncluded, "dostupnost klíče");
-  if (keyIncluded && !keyAuthenticationEnabled) invalid("klíč při vypnuté klíčové autentizaci");
   return {
     schemaVersion: 1,
     generatedAt: date(root.generatedAt, "datum exportu"),
@@ -174,10 +168,12 @@ export function parseCatalog(value: unknown): Catalog {
       name: expectedText(foundry.name, environment.foundryAccount, "Foundry resource"),
       resourceId: expectedText(foundry.resourceId, resourceId("Microsoft.CognitiveServices/accounts", environment.foundryAccount), "Foundry resource ID"),
       location: text(foundry.location, "region"),
-      endpoint: endpoint(foundry.endpoint),
-      keyAuthenticationEnabled,
-      keyIncluded,
       models,
+    },
+    gateway: {
+      name: expectedText(gateway.name, environment.gatewayService, "APIM gateway"),
+      resourceId: expectedText(gateway.resourceId, resourceId("Microsoft.ApiManagement/service", environment.gatewayService), "APIM resource ID"),
+      endpoint: endpoint(gateway.endpoint),
     },
     storage: {
       name: expectedText(storage.name, environment.storageAccount, "storage account"),
@@ -186,23 +182,6 @@ export function parseCatalog(value: unknown): Catalog {
       sharedKeyAccessEnabled: boolean(storage.sharedKeyAccessEnabled, "storage autentizace"),
       files,
     },
-  };
-}
-
-export function parseCatalogKeys(value: unknown, catalog: Catalog): CatalogKeys {
-  const root = object(value, "export klíče", [
-    "schemaVersion", "generatedAt", "foundryResourceId", "apiKey",
-  ]);
-  if (root.schemaVersion !== 1) invalid("verze exportu klíče");
-  expectedText(root.generatedAt, catalog.generatedAt, "klíč a katalog jsou z různých exportů");
-  expectedText(root.foundryResourceId, catalog.foundry.resourceId, "resource ID klíče");
-  const apiKey = root.apiKey === null ? null : text(root.apiKey, "API klíč");
-  if (Boolean(apiKey) !== catalog.foundry.keyIncluded) invalid("dostupnost exportovaného klíče");
-  return {
-    schemaVersion: 1,
-    generatedAt: catalog.generatedAt,
-    foundryResourceId: catalog.foundry.resourceId,
-    apiKey,
   };
 }
 

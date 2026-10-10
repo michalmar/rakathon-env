@@ -10,8 +10,9 @@ umask 077
 
 CONTRIBUTOR_ROLE_ID="b24988ac-6180-42a0-ab88-20f7382dd24c"
 STORAGE_BLOB_DATA_READER_ROLE_ID="2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
-# Původní role "Azure AI User" se nyní jmenuje "Foundry User".
-FOUNDRY_USER_ROLE_ID="53ca6127-db72-4b80-b1b0-d745d6d5456d"
+APIM_API_VERSION="2024-05-01"
+APIM_PRODUCT="hackathon"
+TEAM_BUDGET_USD="${TEAM_BUDGET_USD:-1000}"
 
 requested_count="${1:-1}"
 tap_is_usable_once="${TAP_IS_USABLE_ONCE:-true}"
@@ -100,6 +101,33 @@ shared_rg_location="$(az group show \
   --output tsv \
   --only-show-errors)"
 
+azure_subscription_id="$(az account show --query id --output tsv)"
+apim_name="${APIM_NAME:-$(az apim list \
+  --resource-group "${SHARED_RESOURCE_GROUP}" \
+  --query '[0].name' --output tsv --only-show-errors)}"
+if [[ -z "${apim_name}" || "${apim_name}" == "null" ]]; then
+  echo "APIM instance nenalezena v ${SHARED_RESOURCE_GROUP}. Nastavte APIM_NAME." >&2
+  exit 1
+fi
+apim_base="https://management.azure.com/subscriptions/${azure_subscription_id}/resourceGroups/${SHARED_RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${apim_name}"
+apim_gateway_url="$(az apim show \
+  --name "${apim_name}" --resource-group "${SHARED_RESOURCE_GROUP}" \
+  --query gatewayUrl --output tsv --only-show-errors)"
+apim_openai_url="${APIM_URL:-${apim_gateway_url%/}/openai/v1}"
+
+foundry_name="$(az cognitiveservices account list \
+  --resource-group "${SHARED_RESOURCE_GROUP}" \
+  --query "[?kind=='AIServices'] | [0].name" --output tsv --only-show-errors 2>/dev/null || true)"
+model_list=""
+if [[ -n "${foundry_name}" && "${foundry_name}" != "null" ]]; then
+  model_list="$(az cognitiveservices account deployment list \
+    --name "${foundry_name}" --resource-group "${SHARED_RESOURCE_GROUP}" \
+    --query '[].name' --output tsv --only-show-errors 2>/dev/null | sed 's/^/- `/; s/$/`/' || true)"
+fi
+if [[ -z "${model_list}" ]]; then
+  model_list="- (seznam nasazených modelů zjistíte přes GET ${apim_openai_url}/models)"
+fi
+
 tenant_domain="$(az rest \
   --method get \
   --url "https://graph.microsoft.com/v1.0/domains?\$select=id,isDefault" \
@@ -152,6 +180,38 @@ ensure_role_assignment() {
 
   echo "Nepodařilo se přidělit roli ${description}." >&2
   exit 1
+}
+
+ensure_apim_subscription() {
+  local team="$1"
+  local state key attempt
+
+  az rest --method put \
+    --url "${apim_base}/subscriptions/${team}?api-version=${APIM_API_VERSION}" \
+    --body "{\"properties\":{\"scope\":\"${apim_base}/products/${APIM_PRODUCT}\",\"displayName\":\"${team}\",\"state\":\"active\"}}" \
+    --output none --only-show-errors >&2
+
+  for attempt in {1..12}; do
+    state="$(az rest --method get \
+      --url "${apim_base}/subscriptions/${team}?api-version=${APIM_API_VERSION}" \
+      --query properties.state --output tsv --only-show-errors)"
+    [[ "${state}" == "active" ]] && break
+    sleep 5
+  done
+  if [[ "${state}" != "active" ]]; then
+    echo "APIM subscription ${team} není aktivní (stav: ${state})." >&2
+    exit 1
+  fi
+
+  key="$(az rest --method post \
+    --url "${apim_base}/subscriptions/${team}/listSecrets?api-version=${APIM_API_VERSION}" \
+    --query primaryKey --output tsv --only-show-errors)"
+  if [[ -z "${key}" || "${key}" == "null" ]]; then
+    echo "Nepodařilo se načíst klíč APIM subscription ${team}." >&2
+    exit 1
+  fi
+  echo "  APIM subscription ${team} je aktivní (produkt ${APIM_PRODUCT})." >&2
+  printf '%s' "${key}"
 }
 
 generate_bootstrap_password() {
@@ -253,11 +313,9 @@ while ((created_count < requested_count)); do
     "${STORAGE_BLOB_DATA_READER_ROLE_ID}" \
     "${shared_rg_id}" \
     "Storage Blob Data Reader na ${SHARED_RESOURCE_GROUP}"
-  ensure_role_assignment \
-    "${user_object_id}" \
-    "${FOUNDRY_USER_ROLE_ID}" \
-    "${shared_rg_id}" \
-    "Foundry User (dříve Azure AI User) na ${SHARED_RESOURCE_GROUP}"
+  # Týmy nemají Foundry portál ani Agent Service; modely volají jen přes APIM klíč.
+
+  team_apim_key="$(ensure_apim_subscription "${team_name}")"
 
   temporary_access_pass="$(az rest \
     --method post \
@@ -289,6 +347,47 @@ while ((created_count < requested_count)); do
 - **Začátek platnosti TAP:** ${TAP_START_DATETIME}
 - **Konec platnosti TAP:** ${TAP_END_DATETIME}
 - **Jednorázový TAP:** ${tap_usage}
+
+## Přístup k AI modelům (APIM gateway)
+
+- **Base URL:** ${apim_openai_url}
+- **API klíč týmu:** ${team_apim_key}
+- **Hlavička:** \`api-key: <klíč>\` (\`Authorization: Bearer\` gateway nepřijímá)
+- **Rozpočet:** ${TEAM_BUDGET_USD} USD na tým. Při 90 % dostanete upozornění, při 100 % se přístup zablokuje (HTTP 401).
+- Klíč začne platit přibližně do 1 minuty po vytvoření. V \`model\` uvádějte název deploymentu.
+
+Dostupné deploymenty:
+
+${model_list}
+
+Obrazové deploymenty (např. MAI) volejte na \`/images/generations\` (tělo: model, prompt, width, height).
+
+Python:
+
+\`\`\`python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="${apim_openai_url}",
+    api_key="unused",
+    default_headers={"api-key": "<klíč týmu>"},
+)
+r = client.chat.completions.create(
+    model="<název deploymentu>",
+    messages=[{"role": "user", "content": "Ahoj!"}],
+)
+print(r.choices[0].message.content)
+\`\`\`
+
+curl:
+
+\`\`\`bash
+curl -s "${apim_openai_url}/chat/completions" \\
+  -H "api-key: <klíč týmu>" -H "Content-Type: application/json" \\
+  -d '{"model":"<název deploymentu>","messages":[{"role":"user","content":"Ahoj!"}]}'
+\`\`\`
+
+Při streamování (\`stream: true\`) přidejte \`"stream_options": {"include_usage": true}\`, jinak se spotřeba tokenů nezapočítá správně.
 
 Tento soubor obsahuje citlivé přihlašovací údaje. Sdílejte jej pouze s určeným uživatelem a po předání jej bezpečně odstraňte.
 EOF

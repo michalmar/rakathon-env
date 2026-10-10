@@ -1,7 +1,7 @@
 import "./styles.css";
 import { parseUser } from "./auth";
 import {
-  environment, formatDate, formatSize, parseCatalog, parseCatalogKeys, portalUrl,
+  environment, formatDate, formatSize, parseCatalog, portalUrl,
   type Catalog, type DataFile, type ModelDeployment,
 } from "./catalog";
 
@@ -175,65 +175,14 @@ function modelCard(model: ModelDeployment, catalog: Catalog): HTMLElement {
   body.append(metadata);
   body.append(
     copyField("Deployment / model v SDK", model.deployment, `Kopírovat deployment ${model.model}`),
-    copyField("OpenAI endpoint (v1)", catalog.foundry.endpoint, `Kopírovat endpoint ${model.model}`),
+    copyField("APIM gateway (OpenAI v1)", catalog.gateway.endpoint, `Kopírovat endpoint ${model.model}`),
   );
 
   const keyField = element("div", "connection-field key-field");
   keyField.append(element("span", "field-label", "API klíč"));
-  if (!catalog.foundry.keyIncluded) {
-    const unavailable = element("p", "key-unavailable",
-      catalog.foundry.keyAuthenticationEnabled ? "Klíč nebyl zahrnutý do katalogu." : "Vypnuto · použijte Microsoft Entra ID");
-    unavailable.prepend(icon("lock"));
-    keyField.append(unavailable);
-  } else {
-    const row = element("div", "connection-value");
-    const value = element("code", "copy-value key-value", "••••••••••••••••••••••••");
-    let revealed = false;
-    let generation = 0;
-    async function getKey(): Promise<string> {
-      const exported = parseCatalogKeys(await json("/catalog-keys.json"), catalog);
-      if (!exported.apiKey) throw new Error("Klíč není dostupný. Kontaktujte správce katalogu.");
-      return exported.apiKey;
-    }
-    function hide(): void {
-      generation += 1;
-      revealed = false;
-      value.textContent = "••••••••••••••••••••••••";
-      show.setAttribute("aria-label", `Zobrazit klíč ${model.model}`);
-      show.title = `Zobrazit klíč ${model.model}`;
-      show.setAttribute("aria-pressed", "false");
-    }
-    const show = action(`Zobrazit klíč ${model.model}`, "eye", () => {
-      if (revealed) {
-        hide();
-        return;
-      }
-      const currentGeneration = ++generation;
-      show.disabled = true;
-      getKey().then((key) => {
-        if (generation !== currentGeneration || document.visibilityState !== "visible") return;
-        value.textContent = key;
-        revealed = true;
-        show.setAttribute("aria-label", `Skrýt klíč ${model.model}`);
-        show.title = `Skrýt klíč ${model.model}`;
-        show.setAttribute("aria-pressed", "true");
-      }).catch((error: unknown) => notify(errorMessage(error), true))
-        .finally(() => { show.disabled = false; });
-    });
-    show.setAttribute("aria-pressed", "false");
-    const copyKey = action(`Kopírovat klíč ${model.model}`, "copy", () => {
-      copyKey.disabled = true;
-      getKey().then((key) => copy(key, "Klíč"))
-        .catch((error: unknown) => notify(errorMessage(error), true))
-        .finally(() => { copyKey.disabled = false; });
-    });
-    window.addEventListener("blur", hide);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") hide();
-    });
-    row.append(value, show, copyKey);
-    keyField.append(row);
-  }
+  const keyNote = element("p", "key-unavailable", "Klíč vašeho týmu je v předaném souboru teamNN.md (hlavička api-key).");
+  keyNote.prepend(icon("lock"));
+  keyField.append(keyNote);
   body.append(keyField);
   card.append(summary, body);
   return card;
@@ -383,13 +332,12 @@ function render(catalog: Catalog, user: string): void {
   const heading = element("h2", "", "Nasazené modely");
   heading.id = "models-heading";
   title.append(heading, element("p", "section-description", "V SDK použijte název deploymentu jako hodnotu model."));
-  header.append(title, externalLink(catalog.foundry.name, portalUrl(catalog.foundry.resourceId)));
+  header.append(title, element("span", "snapshot-label", catalog.gateway.name));
   models.append(header);
-  if (!catalog.foundry.keyAuthenticationEnabled) {
-    const message = element("div", "auth-notice");
-    message.append(icon("lock"), element("p", "", "Foundry používá Microsoft Entra ID. Autentizace API klíčem je vypnutá; žádný použitelný klíč proto není k dispozici."));
-    models.append(message);
-  }
+  const message = element("div", "auth-notice");
+  message.append(icon("lock"), element("p", "",
+    "Modely volejte přes APIM gateway. Každý tým má vlastní klíč v předaném souboru teamNN.md; pošlete jej v hlavičce api-key. Tým má rozpočet 1 000 USD – při 90 % upozornění, při 100 % se přístup zablokuje."));
+  models.append(message);
   const cards = element("div", "models-grid");
   cards.append(...catalog.foundry.models.map((model) => modelCard(model, catalog)));
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));

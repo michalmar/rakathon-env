@@ -2,7 +2,8 @@
 
 Jednoduchá statická SPA v TypeScriptu a Vite, bez Functions, MSAL, serverového
 API nebo volání Azure z prohlížeče. Zobrazuje deploymenty Foundry, kopírovatelné
-OpenAI v1 endpointy a názvy deploymentů, případně skryté API klíče. Karty
+APIM gateway endpoint (OpenAI v1) a názvy deploymentů. Portál **nezobrazuje
+žádné API klíče**; klíč týmu je v handoff souboru `teamNN.md`. Karty
 rozlišují Global Standard a EU Data Zone a zobrazují poskytovatele modelu. Dále
 zobrazuje seznam souborů v `strakathondataq7146n/data` a návod ke stažení
 v Azure Portalu. Soubory nestahuje a SAS odkazy negeneruje.
@@ -10,7 +11,7 @@ v Azure Portalu. Soubory nestahuje a SAS odkazy negeneruje.
 Údaje jsou **snapshot**, nikoli živý přehled. Na stránce je datum exportu.
 Exportér pouze čte Azure; nemění infrastrukturu, role, firewall ani autentizaci.
 `public/catalog.json` obsahuje při vývoji načtené modely a metadata souborů,
-bez klíčů. Je součástí zdrojů, takže aplikaci lze sestavit i bez Azure CLI
+bez klíčů (APIM gateway endpoint místo Foundry endpointu). Je součástí zdrojů, takže aplikaci lze sestavit i bez Azure CLI
 a přístupu do Azure.
 
 ## Lokální spuštění
@@ -42,37 +43,22 @@ bloby; jejich obsah nestahuje.
 **bez Easy Auth**. Není to bezpečný produkční hosting. Produkční build
 neobsahuje tento development bypass.
 
-## API klíče
+## API klíče a přístup týmů
 
-Foundry `ais-rakathon-q7146n` má autentizaci API klíčem povolenou Terraformem
-(`local_auth_enabled = true`). Microsoft Entra ID autentizace zůstává funkční.
-Samotná SPA nastavení infrastruktury nemění. Správce může vytvořit nový
-snapshot včetně primárního klíče:
+Portál klíče **neexportuje ani nepublikuje**. Dříve sdílený klíč Foundry se do
+katalogu nedostává a soubor `public/catalog-keys.json` už neexistuje (export jej
+při spuštění smaže a build selže, pokud se objeví). Modely se volají přes APIM
+gateway `https://apim-rakathon-q7146n.azure-api.net/openai/v1`; `model` v těle
+je název deploymentu. Každý tým má vlastní APIM subscription `teamNN` a klíč,
+který dostane v handoff souboru `team-user-access/teamNN.md` vygenerovaném
+skriptem `create-team-users`. Klíč se posílá v hlavičce `api-key`
+(OpenAI SDK: `default_headers={"api-key": KEY}`).
 
-```bash
-export AZURE_CONFIG_DIR="$HOME/.azure-rak"
-cd web
-npm run catalog:refresh:keys
-npm run build
-```
-
-Klíč se načte až při explicitní žádosti o zobrazení nebo kopírování. Zobrazený
-klíč se znovu skryje při opuštění karty nebo okna. Nezapisuje se do browser
-storage, URL ani logů.
-
-Pouze `public/catalog-keys.json` je secret-bearing soubor, ignorovaný Gitem.
-Exportér zapisuje snapshoty s lokálními právy `0600`; klíč nevkládá do
-zdrojového kódu ani metadata katalogu. Každý úspěšný export přepíše i soubor
-klíče, takže export bez klíčů odstraní dříve zahrnutý klíč. Build kontroluje
-shodu generace katalogu a klíče. Soubor klíče není potřeba, pokud snapshot
-uvádí `keyIncluded: false`; pokud existuje, musí odpovídat snapshotu a nesmí
-obsahovat starý klíč.
-
-**Skrytí klíče v UI není zabezpečení.** Každý přihlášený uživatel tohoto tenantu
-může přečíst chráněný statický soubor. To odpovídá účelu sdílení údajů mezi
-účastníky. Pokud klíče nejsou určené všem uživatelům tenantu, do katalogu je
-nezahrnujte. Build artefakt s klíčem nepublikujte do veřejných CI artefaktů,
-GitHub Pages ani nechráněného static website hostingu.
+Rozpočet týmu je 1 000 USD: při 90 % přijde upozornění, při 100 % se přístup
+zablokuje (suspend subscription). Správce přístup týmu vypne/obnoví příkazem
+`infra/rakathon-env/scripts/set-team-access.sh teamNN on|off` (viz README
+infrastruktury). Portál s tím nemá nic společného – jen zobrazuje endpoint a
+odkazuje na handoff soubor.
 
 ## Azure Static Web Apps a Easy Auth
 
@@ -101,7 +87,7 @@ cd web
 npm run deploy
 ```
 
-Příkaz obnoví snapshot včetně klíče, sestaví aplikaci a publikuje obsah `dist`
+Příkaz obnoví snapshot (bez klíčů), sestaví aplikaci a publikuje obsah `dist`
 do **production** prostředí. SWA deployment token načte pouze do paměti procesu;
 neukládá ho do konfigurace ani keychainu.
 
@@ -110,14 +96,11 @@ ARM64 build. Deploy skript proto použije již spuštěný Docker a oficiální 
 image `mcr.microsoft.com/appsvc/staticappsclient:stable`; token předá pouze
 proměnnou prostředí. GitHub Actions ani propojení repository nejsou potřeba.
 
-Při prvním nasazení nejprve publikujte build bez klíče
-(`npm run catalog:refresh && npm run build && node scripts/deploy.mjs`).
-Ověřte anonymní ochranu `/`, `/catalog.json`, `/catalog-keys.json` a assetů
-a správný tenant přihlašovacího redirectu. Teprve potom použijte
-`npm run deploy` pro katalog s klíčem. Samotný lokální build nepřítomnost
+Po prvním nasazení ověřte anonymní ochranu `/`, `/catalog.json` a assetů
+a správný tenant přihlašovacího redirectu. Samotný lokální build nepřítomnost
 anonymního přístupu na živém hostingu neprokazuje.
 
-Celý web, včetně JSON katalogu, klíče a assetů, vyžaduje roli `authenticated`.
+Celý web, včetně JSON katalogu a assetů, vyžaduje roli `authenticated`.
 Issuer obsahuje konkrétní tenant, nikoli `common` nebo `organizations`.
 Vlastní provider vypíná předkonfigurované identity providery. Nepřidávejte
 anonymní výjimku pro `/catalog*.json` ani `navigationFallback`, který by mohl
@@ -136,9 +119,9 @@ v Entra enterprise application.
 
 ## Aktualizace a ověření
 
-Po změně deploymentů, souborů nebo rotaci klíče znovu spusťte export a build
-a znovu publikujte `dist`. Není nutné přidělovat účastníkům oprávnění k výpisu
-Foundry klíčů; ty případně načítá jen správce při exportu.
+Po změně deploymentů nebo souborů znovu spusťte export a build a znovu
+publikujte `dist`. Export klíče nečte; účastníci nepotřebují žádná oprávnění
+k Foundry ani APIM.
 
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-rak"
