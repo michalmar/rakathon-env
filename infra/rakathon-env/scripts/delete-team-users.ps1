@@ -12,7 +12,7 @@ if (Test-Path variable:PSNativeCommandUseErrorActionPreference) {
 
 $ContributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 $StorageBlobDataReaderRoleId = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-$FoundryUserRoleId = '53ca6127-db72-4b80-b1b0-d745d6d5456d'
+$ApimApiVersion = '2024-05-01'
 
 function Invoke-AzCli {
     param(
@@ -113,6 +113,18 @@ if (-not $tenantDomain -or $tenantDomain -eq 'null') {
     throw 'Nepodařilo se zjistit výchozí ověřenou doménu tenantu.'
 }
 
+$azureSubscriptionId = Invoke-AzCli -Arguments @('account', 'show', '--query', 'id', '--output', 'tsv')
+$apimName = if ($env:APIM_NAME) { $env:APIM_NAME } else {
+    Invoke-AzCli -Arguments @(
+        'apim', 'list', '--resource-group', $env:SHARED_RESOURCE_GROUP,
+        '--query', '[0].name', '--output', 'tsv', '--only-show-errors'
+    )
+}
+if (-not $apimName -or $apimName -eq 'null') {
+    throw "APIM instance nenalezena v $($env:SHARED_RESOURCE_GROUP). Nastavte APIM_NAME."
+}
+$apimBase = "https://management.azure.com/subscriptions/$azureSubscriptionId/resourceGroups/$($env:SHARED_RESOURCE_GROUP)/providers/Microsoft.ApiManagement/service/$apimName"
+
 $sharedResourceGroupId = Invoke-AzCli -Arguments @(
     'group', 'show',
     '--name', $env:SHARED_RESOURCE_GROUP,
@@ -155,6 +167,7 @@ if ($DeleteResourceGroups) {
 else {
     Write-Host 'Resource groups odstraněny nebudou.'
 }
+Write-Host 'Budou odstraněny také jejich APIM subscriptions (klíče přestanou platit).'
 Write-Host 'TAP Markdown soubory odstraněny nebudou.'
 
 if (-not $Force) {
@@ -195,11 +208,15 @@ foreach ($user in $teamUsers) {
         -RoleId $StorageBlobDataReaderRoleId `
         -Scope $sharedResourceGroupId `
         -Description "Storage Blob Data Reader na $($env:SHARED_RESOURCE_GROUP)"
-    Remove-TeamRoleAssignment `
-        -PrincipalId $user.id `
-        -RoleId $FoundryUserRoleId `
-        -Scope $sharedResourceGroupId `
-        -Description "Foundry User na $($env:SHARED_RESOURCE_GROUP)"
+    & az rest --method delete `
+        --url "$apimBase/subscriptions/${teamName}?api-version=$ApimApiVersion" `
+        --output none --only-show-errors 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Odstraněna APIM subscription $teamName."
+    }
+    else {
+        Write-Host "  APIM subscription $teamName neexistovala nebo ji nelze smazat."
+    }
 
     Invoke-AzCli -Arguments @(
         'ad', 'user', 'delete',

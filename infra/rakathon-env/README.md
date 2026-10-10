@@ -172,11 +172,15 @@ Pro každého uživatele skript:
 - vytvoří `rg-teamNN` ve stejné lokaci jako `rg-rakathon-shared`,
 - přidělí `Contributor` pouze na `rg-teamNN`,
 - přidělí `Storage Blob Data Reader` na `rg-rakathon-shared`,
-- přidělí roli `Foundry User` na `rg-rakathon-shared`; jde o aktuální název
-  původní role `Azure AI User`,
+- **nepřiděluje** roli `Foundry User` – týmy nemají přístup do Foundry portálu
+  ani Agent Service; modely volají výhradně přes APIM gateway,
+- idempotentně vytvoří APIM subscription `teamNN` v produktu `hackathon`
+  (`az rest`, api-version `2024-05-01`), počká na stav `active` a načte její klíč,
 - vytvoří Temporary Access Pass platný od `TAP_START_DATETIME` do
   `TAP_END_DATETIME`,
-- uloží jméno, UPN a TAP do samostatného souboru
+- uloží jméno, UPN, TAP a údaje pro AI gateway (base URL, klíč týmu, seznam
+  deploymentů, příklad v Pythonu a curl, upozornění na
+  `stream_options: {include_usage: true}` a rozpočet týmu) do samostatného souboru
   `team-user-access/teamNN.md`.
 
 Příklad vytvořených handoff souborů:
@@ -195,6 +199,13 @@ z `AZURE_TENANT_ID` a název sdílené resource group z
 `YYYY-MM-DDTHH:MM:SSZ`. Rozdíl musí být celé minuty a musí být v rozsahu 10 až
 43200 minut. Volitelně lze nastavit `TAP_IS_USABLE_ONCE` a
 `TEAM_USER_OUTPUT_DIR`.
+
+Název APIM instance skript zjistí v `SHARED_RESOURCE_GROUP` (nebo ji lze zadat
+přes `APIM_NAME`); base URL lze přepsat proměnnou `APIM_URL`, rozpočet uvedený
+v handoffu proměnnou `TEAM_BUDGET_USD` (výchozí 1000). Klíč nového subscription
+začne platit zhruba do 1 minuty. Klient posílá klíč v hlavičce `api-key`
+(`Authorization: Bearer` gateway nepřijímá); podrobnosti v
+[`docs/apim-findings.md`](docs/apim-findings.md).
 
 TAP handoff soubory jsou ve výchozím adresáři ignorované Gitem a obsahují
 citlivé přihlašovací údaje. Každý soubor je určen k bezpečnému předání pouze
@@ -217,8 +228,8 @@ neodebírá.
 Mazací skripty vyberou pouze uživatele odpovídající přesnému vzoru
 `teamXX@<výchozí-doména>` a před odstraněním zobrazí jejich seznam. Resource
 groups `rg-teamXX` ani TAP Markdown soubory ve výchozím režimu nemažou. Odstraní
-pouze tři RBAC assignments vytvořené provisioning skriptem a následně
-uživatelské účty.
+dva RBAC assignments vytvořené provisioning skriptem, APIM subscription
+`teamXX` (klíč tím okamžitě přestane platit) a následně uživatelské účty.
 
 Bash:
 
@@ -254,6 +265,31 @@ neinteraktivní spuštění lze kontrolu přeskočit explicitním přepínačem:
 ```
 
 TAP Markdown soubory se nemažou ani při použití přepínače pro resource groups.
+
+### Přidělený rozpočet, zablokování a obnovení přístupu týmu
+
+Každý tým má rozpočet 1 000 USD, celá akce 5 000 USD. Při 90 % se posílá
+upozornění, při 100 % se přístup zablokuje (suspend APIM subscription; klient
+dostane HTTP 401). Blokaci řeší automatizovaná kontrola nákladů; ručně lze
+přístup kdykoli vypnout nebo obnovit skriptem `set-team-access`. Suspend/activate
+je vratné a klíč zůstává stejný (účinek do cca 10 s).
+
+```bash
+./scripts/set-team-access.sh status          # stav všech týmových subscriptions
+./scripts/set-team-access.sh team03 off      # zablokovat tým
+./scripts/set-team-access.sh team03 on       # obnovit tým
+./scripts/set-team-access.sh --all off       # zablokovat všechny týmy (kromě ops-*)
+```
+
+```powershell
+./scripts/set-team-access.ps1 -Status
+./scripts/set-team-access.ps1 -Team team03 -State off
+./scripts/set-team-access.ps1 -Team all -State on
+```
+
+`--all` / `all` zahrnuje všechny subscriptions produktu `hackathon` mimo
+provozní `ops-*`. Skripty používají `SHARED_RESOURCE_GROUP` a volitelně
+`APIM_NAME`.
 
 ## Bootstrap omezení
 

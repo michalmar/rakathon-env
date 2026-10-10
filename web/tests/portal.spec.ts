@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { catalogFixture, keysFixture, userFixture } from "./fixtures";
-import { type Catalog } from "../src/catalog";
+import { catalogFixture, userFixture } from "./fixtures";
 
 async function prepare(page: Page, catalog = catalogFixture(), user: unknown = userFixture()) {
   let keyRequests = 0;
@@ -12,7 +11,7 @@ async function prepare(page: Page, catalog = catalogFixture(), user: unknown = u
   });
   await page.route("**/catalog-keys.json", (route) => {
     keyRequests += 1;
-    return route.fulfill({ json: keysFixture(catalog) });
+    return route.fulfill({ json: {} });
   });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
@@ -30,7 +29,7 @@ async function openFirstModel(page: Page) {
   await expect(card).toHaveAttribute("open", "");
 }
 
-test("zobrazí modely, endpointy, skutečný stav autentizace a návod místo downloadů", async ({ page }) => {
+test("zobrazí modely, APIM endpoint, odkaz na klíč týmu a návod místo downloadů", async ({ page }) => {
   const requests = await prepare(page);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -40,7 +39,7 @@ test("zobrazí modely, endpointy, skutečný stav autentizace a návod místo do
   await expect(page.locator(".deployment-global")).toHaveCount(1);
   await expect(page.locator(".provider-openai")).toHaveCount(1);
   await expect(page.locator(".provider-xai")).toHaveCount(1);
-  await expect(page.getByText("Foundry používá Microsoft Entra ID.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Každý tým má vlastní klíč", { exact: false })).toBeVisible();
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
   await expect(page.getByRole("heading", { name: "Datové podklady pouze pro výzvy VZP" })).toBeVisible();
   await expect(page.getByText("Jak soubory stáhnout v Azure Portalu")).toBeVisible();
@@ -50,8 +49,8 @@ test("zobrazí modely, endpointy, skutečný stav autentizace a návod místo do
   await expect(page.getByRole("button", { name: "Kopírovat endpoint Testovací model 1" })).toBeHidden();
   await openFirstModel(page);
   await page.getByRole("button", { name: "Kopírovat endpoint Testovací model 1" }).click();
-  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(catalogFixture().foundry.endpoint);
-  await expect(page.getByRole("status")).toHaveText("OpenAI endpoint (v1) zkopírován do schránky.");
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(catalogFixture().gateway.endpoint);
+  await expect(page.getByRole("status")).toHaveText("APIM gateway (OpenAI v1) zkopírován do schránky.");
   await page.getByRole("button", { name: "Kopírovat deployment Testovací model 1" }).click();
   expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe("test-model-one");
 });
@@ -69,43 +68,19 @@ test("filtruje soubory a prázdný výsledek vysvětlí", async ({ page }) => {
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
 });
 
-function withKey(): Catalog {
-  const catalog = catalogFixture();
-  catalog.foundry.keyAuthenticationEnabled = true;
-  catalog.foundry.keyIncluded = true;
-  return catalog;
-}
-
-test("klíč načte až na vyžádání, lze jej skrýt i zkopírovat bez zobrazení", async ({ page }) => {
-  const catalog = withKey();
-  const requests = await prepare(page, catalog);
+test("API klíč se nikdy nenačítá ani nezobrazuje; portál odkazuje na handoff soubor", async ({ page }) => {
+  const requests = await prepare(page);
   await page.goto("/");
-  await expect(page.locator(".key-value").first()).not.toContainText("test-only");
-  expect(requests.keyRequests()).toBe(0);
   await openFirstModel(page);
-  await page.getByRole("button", { name: "Kopírovat klíč Testovací model 1" }).click();
-  await expect(page.getByRole("status")).toHaveText("Klíč zkopírován do schránky.");
-  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(keysFixture(catalog).apiKey);
-  await expect(page.locator(".key-value").first()).not.toContainText("test-only");
-  await page.getByRole("button", { name: "Zobrazit klíč Testovací model 1" }).click();
-  await expect(page.locator(".key-value").first()).toHaveText("test-only-not-a-real-credential");
-  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
-  await expect(page.locator(".key-value").first()).not.toContainText("test-only");
-  await expect(page.getByRole("button", { name: "Zobrazit klíč Testovací model 1" })).toHaveAttribute("aria-pressed", "false");
-  expect(requests.keyRequests()).toBe(2);
+  await expect(page.getByText("teamNN.md", { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /klíč/ })).toHaveCount(0);
+  expect(requests.keyRequests()).toBe(0);
 });
 
-test("odmítne klíč z jiné generace a chybu schránky viditelně oznámí", async ({ page }) => {
-  const catalog = withKey();
-  await prepare(page, catalog);
-  await page.route("**/catalog-keys.json", (route) => route.fulfill({
-    json: { ...keysFixture(catalog), generatedAt: "2026-10-08T08:00:00.000Z" },
-  }));
+test("chybu schránky viditelně oznámí", async ({ page }) => {
+  await prepare(page);
   await page.goto("/");
   await openFirstModel(page);
-  await page.getByRole("button", { name: "Zobrazit klíč Testovací model 1" }).click();
-  await expect(page.getByRole("alert")).toContainText("různých exportů");
-  await expect(page.locator(".key-value").first()).not.toContainText("test-only");
   await page.evaluate(() => {
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: async () => { throw new Error("clipboard denied"); } },

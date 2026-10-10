@@ -1,4 +1,4 @@
-import { environment, resourceId, type Catalog, type CatalogKeys } from "../src/catalog";
+import { environment, resourceId, type Catalog } from "../src/catalog";
 
 export function catalogFixture(): Catalog {
   return {
@@ -11,13 +11,15 @@ export function catalogFixture(): Catalog {
       name: environment.foundryAccount,
       resourceId: resourceId("Microsoft.CognitiveServices/accounts", environment.foundryAccount),
       location: "swedencentral",
-      endpoint: `https://${environment.foundryAccount}.openai.azure.com/openai/v1/`,
-      keyAuthenticationEnabled: false,
-      keyIncluded: false,
       models: [
         { deployment: "test-model-one", model: "Testovací model 1", version: "1", format: "OpenAI", state: "Succeeded", sku: "DataZoneStandard", capacity: 10 },
         { deployment: "test-model-two", model: "Testovací model 2", version: "2", format: "xAI", state: "Succeeded", sku: "GlobalStandard", capacity: 20 },
       ],
+    },
+    gateway: {
+      name: environment.gatewayService,
+      resourceId: resourceId("Microsoft.ApiManagement/service", environment.gatewayService),
+      endpoint: `https://${environment.gatewayService}.azure-api.net/openai/v1/`,
     },
     storage: {
       name: environment.storageAccount,
@@ -30,15 +32,6 @@ export function catalogFixture(): Catalog {
         { name: "ukazkovy-archiv.zip", size: 4096, lastModified: "2026-10-09T06:00:00.000Z", contentType: "application/zip" },
       ],
     },
-  };
-}
-
-export function keysFixture(catalog: Catalog): CatalogKeys {
-  return {
-    schemaVersion: 1,
-    generatedAt: catalog.generatedAt,
-    foundryResourceId: catalog.foundry.resourceId,
-    apiKey: catalog.foundry.keyIncluded ? "test-only-not-a-real-credential" : null,
   };
 }
 

@@ -12,8 +12,9 @@ if (Test-Path variable:PSNativeCommandUseErrorActionPreference) {
 
 $ContributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 $StorageBlobDataReaderRoleId = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-# Původní role "Azure AI User" se nyní jmenuje "Foundry User".
-$FoundryUserRoleId = '53ca6127-db72-4b80-b1b0-d745d6d5456d'
+$ApimApiVersion = '2024-05-01'
+$ApimProduct = 'hackathon'
+$TeamBudgetUsd = if ($env:TEAM_BUDGET_USD) { $env:TEAM_BUDGET_USD } else { '1000' }
 
 if (-not $env:TAP_START_DATETIME) {
     throw 'Nastavte TAP_START_DATETIME ve formátu YYYY-MM-DDTHH:MM:SSZ.'
@@ -147,6 +148,48 @@ function Add-RoleAssignment {
     throw "Nepodařilo se přidělit roli $Description."
 }
 
+function Ensure-ApimSubscription {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Team
+    )
+
+    $subscriptionUrl = "$script:apimBase/subscriptions/${Team}?api-version=$ApimApiVersion"
+    $putBody = @{ properties = @{
+        scope = "$script:apimBase/products/$ApimProduct"
+        displayName = $Team
+        state = 'active'
+    } } | ConvertTo-Json -Compress -Depth 5
+    Invoke-AzCli -Arguments @(
+        'rest', '--method', 'put', '--url', $subscriptionUrl,
+        '--body', $putBody, '--output', 'none', '--only-show-errors'
+    ) | Out-Null
+
+    $state = ''
+    foreach ($attempt in 1..12) {
+        $state = Invoke-AzCli -Arguments @(
+            'rest', '--method', 'get', '--url', $subscriptionUrl,
+            '--query', 'properties.state', '--output', 'tsv', '--only-show-errors'
+        )
+        if ($state -eq 'active') { break }
+        Start-Sleep -Seconds 5
+    }
+    if ($state -ne 'active') {
+        throw "APIM subscription $Team není aktivní (stav: $state)."
+    }
+
+    $key = Invoke-AzCli -Arguments @(
+        'rest', '--method', 'post',
+        '--url', "$script:apimBase/subscriptions/${Team}/listSecrets?api-version=$ApimApiVersion",
+        '--query', 'primaryKey', '--output', 'tsv', '--only-show-errors'
+    )
+    if (-not $key -or $key -eq 'null') {
+        throw "Nepodařilo se načíst klíč APIM subscription $Team."
+    }
+    Write-Host "  APIM subscription $Team je aktivní (produkt $ApimProduct)."
+    return $key
+}
+
 function New-BootstrapPassword {
     $randomBytes = [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(12)
     $randomPart = [Convert]::ToHexString($randomBytes)
@@ -195,6 +238,37 @@ $sharedResourceGroupLocation = Invoke-AzCli -Arguments @(
     '--output', 'tsv',
     '--only-show-errors'
 )
+
+$azureSubscriptionId = Invoke-AzCli -Arguments @('account', 'show', '--query', 'id', '--output', 'tsv')
+$apimName = if ($env:APIM_NAME) { $env:APIM_NAME } else {
+    Invoke-AzCli -Arguments @(
+        'apim', 'list', '--resource-group', $env:SHARED_RESOURCE_GROUP,
+        '--query', '[0].name', '--output', 'tsv', '--only-show-errors'
+    )
+}
+if (-not $apimName -or $apimName -eq 'null') {
+    throw "APIM instance nenalezena v $($env:SHARED_RESOURCE_GROUP). Nastavte APIM_NAME."
+}
+$apimBase = "https://management.azure.com/subscriptions/$azureSubscriptionId/resourceGroups/$($env:SHARED_RESOURCE_GROUP)/providers/Microsoft.ApiManagement/service/$apimName"
+$apimGatewayUrl = Invoke-AzCli -Arguments @(
+    'apim', 'show', '--name', $apimName, '--resource-group', $env:SHARED_RESOURCE_GROUP,
+    '--query', 'gatewayUrl', '--output', 'tsv', '--only-show-errors'
+)
+$apimOpenAiUrl = if ($env:APIM_URL) { $env:APIM_URL } else { "$($apimGatewayUrl.TrimEnd('/'))/openai/v1" }
+
+$modelList = ''
+$foundryName = & az cognitiveservices account list --resource-group $env:SHARED_RESOURCE_GROUP `
+    --query "[?kind=='AIServices'] | [0].name" --output tsv --only-show-errors 2>$null
+if ($LASTEXITCODE -eq 0 -and $foundryName) {
+    $deploymentNames = & az cognitiveservices account deployment list --name $foundryName `
+        --resource-group $env:SHARED_RESOURCE_GROUP --query '[].name' --output tsv --only-show-errors 2>$null
+    if ($LASTEXITCODE -eq 0 -and $deploymentNames) {
+        $modelList = (@($deploymentNames) | ForEach-Object { '- `' + $_ + '`' }) -join "`n"
+    }
+}
+if (-not $modelList) {
+    $modelList = "- (seznam nasazených modelů zjistíte přes GET $apimOpenAiUrl/models)"
+}
 
 $tenantDomain = Invoke-AzCli -Arguments @(
     'rest',
@@ -304,11 +378,9 @@ while ($createdCount -lt $Count) {
         -RoleId $StorageBlobDataReaderRoleId `
         -Scope $sharedResourceGroupId `
         -Description "Storage Blob Data Reader na $($env:SHARED_RESOURCE_GROUP)"
-    Add-RoleAssignment `
-        -PrincipalId $userObjectId `
-        -RoleId $FoundryUserRoleId `
-        -Scope $sharedResourceGroupId `
-        -Description "Foundry User (dříve Azure AI User) na $($env:SHARED_RESOURCE_GROUP)"
+    # Týmy nemají Foundry portál ani Agent Service; modely volají jen přes APIM klíč.
+
+    $teamApimKey = Ensure-ApimSubscription -Team $teamName
 
     $tapRequestBody = @{
         startDateTime = $tapStartDateTime.ToString($dateTimeFormat)
@@ -340,6 +412,47 @@ while ($createdCount -lt $Count) {
 - **Začátek platnosti TAP:** $($tapStartDateTime.ToString($dateTimeFormat))
 - **Konec platnosti TAP:** $($tapEndDateTime.ToString($dateTimeFormat))
 - **Jednorázový TAP:** $tapUsage
+
+## Přístup k AI modelům (APIM gateway)
+
+- **Base URL:** $apimOpenAiUrl
+- **API klíč týmu:** $teamApimKey
+- **Hlavička:** ``api-key: <klíč>`` (``Authorization: Bearer`` gateway nepřijímá)
+- **Rozpočet:** $TeamBudgetUsd USD na tým. Při 90 % dostanete upozornění, při 100 % se přístup zablokuje (HTTP 401).
+- Klíč začne platit přibližně do 1 minuty po vytvoření. V ``model`` uvádějte název deploymentu.
+
+Dostupné deploymenty:
+
+$modelList
+
+Obrazové deploymenty (např. MAI) volejte na ``/images/generations`` (tělo: model, prompt, width, height).
+
+Python:
+
+``````python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="$apimOpenAiUrl",
+    api_key="unused",
+    default_headers={"api-key": "<klíč týmu>"},
+)
+r = client.chat.completions.create(
+    model="<název deploymentu>",
+    messages=[{"role": "user", "content": "Ahoj!"}],
+)
+print(r.choices[0].message.content)
+``````
+
+curl:
+
+``````bash
+curl -s "$apimOpenAiUrl/chat/completions" \
+  -H "api-key: <klíč týmu>" -H "Content-Type: application/json" \
+  -d '{"model":"<název deploymentu>","messages":[{"role":"user","content":"Ahoj!"}]}'
+``````
+
+Při streamování (``stream: true``) přidejte ``"stream_options": {"include_usage": true}``, jinak se spotřeba tokenů nezapočítá správně.
 
 Tento soubor obsahuje citlivé přihlašovací údaje. Sdílejte jej pouze s určeným uživatelem a po předání jej bezpečně odstraňte.
 "@
