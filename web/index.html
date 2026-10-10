@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <!--
+      THESIS: A calm developer workspace that gets teams from sign-in to usable credentials in seconds.
+      OWN-WORLD: Deep blue structure, focused red signals, airy light surfaces, precise rounded controls, restrained depth.
+      STORY: Confirm access, choose a deployment, copy the exact values, then find the VZP challenge data.
+      FIRST VIEWPORT: Compact workspace navigation above a decisive blue field and a visible model inventory.
+      FORM: Operate mode; modern product workspace with task-first density and responsive utility panels.
+    -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Modely, endpointy a datové podklady pro účastníky Rakathonu." />
+    <meta name="theme-color" content="#ffffff" />
+    <script src="/theme.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/mark.svg" />
+    <title>Rakathon · Modely a data</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Přejít na obsah</a>
+    <div id="app" aria-busy="true">
+      <main id="main" class="loading-screen">
+        <span class="brand brand-loading" aria-label="Rakathon podporují VZP a Microsoft">
+          <span class="brand-logos" aria-hidden="true">
+            <img class="supporter-logo supporter-logo-vzp" src="/vzp-logo.png" alt="" />
+            <span class="brand-divider"></span>
+            <img class="supporter-logo supporter-logo-microsoft" src="/microsoft-logo.png" alt="" />
+          </span>
+        </span>
+        <p role="status">Načítám katalog modelů a dat…</p>
+      </main>
+    </div>
+    <div id="notification" class="notification" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 subscription_id = "00000000-0000-0000-0000-000000000000"
 location        = "swedencentral"
+portal_location = "eastus2"
 
 resource_group_name      = "rg-rakathon-shared"
 project_name_compact     = "rakathon"
@@ -22,20 +23,63 @@ team_data_reader_object_ids          = []
 
 foundry_project_name = "rakathon-project"
 
-# Ověřeno pro Sweden Central dne 2026-10-07.
-# Kapacita 3333 je aktuální maximum subscription quota i platform capacity.
+# Ověřeno proti live model catalogu a subscription quota pro Sweden Central dne 2026-10-09.
 foundry_model_deployments = {
   gpt-6-1-sol-dz-eu = {
+    model_format  = "OpenAI"
     model_name    = "gpt-6.1-sol"
     model_version = "2026-09-29"
     sku_name      = "DataZoneStandard"
     capacity      = 3333
   }
   gpt-6-luna-dz-eu = {
+    model_format  = "OpenAI"
     model_name    = "gpt-6-luna"
     model_version = "2026-09-22"
     sku_name      = "DataZoneStandard"
     capacity      = 3333
+  }
+  grok-4-7-global = {
+    model_format  = "xAI"
+    model_name    = "grok-4.7"
+    model_version = "1"
+    sku_name      = "GlobalStandard"
+    capacity      = 10000
+  }
+  gpt-6-astra-global = {
+    model_format  = "OpenAI"
+    model_name    = "gpt-6-astra"
+    model_version = "2026-09-03"
+    sku_name      = "GlobalStandard"
+    capacity      = 10000
+  }
+  mai-image-2-5-global = {
+    model_format  = "Microsoft"
+    model_name    = "MAI-Image-2.5"
+    model_version = "2026-06-02"
+    sku_name      = "GlobalStandard"
+    capacity      = 10
+  }
+  deepseek-v4-pro-global = {
+    model_format  = "DeepSeek"
+    model_name    = "DeepSeek-V4-Pro"
+    model_version = "2026-04-23"
+    sku_name      = "GlobalStandard"
+    capacity      = 10000
+  }
+  mai-thinking-1-global = {
+    model_format  = "Microsoft"
+    model_name    = "MAI-Thinking-1"
+    model_version = "2026-06-01"
+    sku_name      = "GlobalStandard"
+    capacity      = 1500
+  }
+  kimi-k2-7-code-global = {
+    model_format  = "MoonshotAI"
+    model_name    = "Kimi-K2.7-Code"
+    model_version = "2026-06-12"
+    sku_name      = "GlobalStandard"
+    capacity      = 2000
   }
 }
 

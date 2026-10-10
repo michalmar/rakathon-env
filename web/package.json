@@ -1,0 +1,28 @@
+{
+  "name": "rakathon-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "catalog:refresh": "node scripts/export-catalog.mjs",
+    "catalog:refresh:keys": "node scripts/export-catalog.mjs --include-keys",
+    "deploy": "npm run catalog:refresh:keys && npm run build && node scripts/deploy.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && node scripts/validate-catalog.mjs && vite build",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@azure/static-web-apps-cli": "2.0.10",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.0"
+  }
+}

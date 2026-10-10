@@ -4,7 +4,8 @@ Aktuální rozsah tvoří dva oddělené Terraform deploymenty:
 
 - `setup` vytvoří resource group a Storage pro Terraform state.
 - `shared` vytvoří sdílenou resource group, Storage, container `data`,
-  veřejný Microsoft Foundry resource, Foundry project a model deploymenty.
+  veřejný Microsoft Foundry resource, Foundry project a model deploymenty;
+  také obsahuje Static Web Apps Standard a Entra autentizaci účastnického portálu.
 
 Týmové resource groups ani Entra ID uživatelé se zatím nevytvářejí.
 Budoucí model počítá s jednou Entra security group na tým, rolí `Contributor`
@@ -38,13 +39,16 @@ Shared deployment vytváří:
 - Foundry resource `ais-rakathon-<suffix>` se SKU `S0`,
 - veřejný project `rakathon-project`,
 - `gpt-6.1-sol` verze `2026-09-29` jako `DataZoneStandard`,
-- `gpt-6-luna` verze `2026-09-22` jako `DataZoneStandard`.
+- `gpt-6-luna` verze `2026-09-22` jako `DataZoneStandard`,
+- `grok-4.7`, `gpt-6-astra`, `DeepSeek-V4-Pro`, `Kimi-K2.7-Code`,
+  `MAI-Thinking-1` a `MAI-Image-2.5` jako `GlobalStandard`.
 
-Oba modely používají kapacitu `3333`, což při přípravě deploymentu odpovídalo
-maximální dostupné subscription quota i platform capacity ve Sweden Central.
-`gpt-6-astra` není nasazený, protože v tomto regionu aktuálně nepodporuje
-`DataZoneStandard`. Foundry local/key autentizace je vypnutá; používejte Entra
-ID a RBAC.
+Data Zone modely používají kapacitu `3333`. Global deploymenty používají
+subscription maxima ověřená 2026-10-09: `10000` pro grok, Astra a DeepSeek,
+`2000` pro Kimi a `1500` pro MAI-Thinking, tedy po 1000 TPM na jednotku.
+`MAI-Image-2.5` používá maximum `10` image requests/minute; nejde o tokenový
+model. Foundry local/key autentizace je povolená; lze použít API klíč i
+Microsoft Entra ID s RBAC. Storage shared keys tím nejsou povolené.
 Veřejný síťový přístup k Foundry je standardně vypnutý a odchozí provoz je
 omezený. Případné povolení nastavte explicitně v `shared/terraform.tfvars`.
 
@@ -53,6 +57,8 @@ omezený. Případné povolení nastavte explicitně v `shared/terraform.tfvars`
 - Terraform 1.6 nebo novější
 - Azure CLI
 - oprávnění vytvářet resource groups, Storage účty a role assignments
+- Entra oprávnění vytvářet vlastní app registrations a enterprise applications,
+  například role `Application Developer` v cílovém tenantu
 - přihlášení pomocí `az login`
 
 Storage names jsou globálně unikátní. Terraform k prefixu přidá náhodný suffix,
@@ -96,6 +102,24 @@ prvním vytvoření přejít ze Storage key na Entra ID autentizaci:
 ```bash
 ./scripts/deploy-shared.sh
 ```
+
+Pro aktualizaci existující infrastruktury používejte přímo zkontrolovaný
+`terraform plan` a `terraform apply`; bootstrap skript dočasně povoluje Storage
+shared keys a pro běžné aktualizace není vhodný.
+
+Portál používá `portal_location = "eastus2"`. Sweden Central SWA nepodporuje
+a West Europe aktuálně odmítá nové zákazníky. Statický obsah SWA je globálně
+distribuovaný. Jeho public URL, název, client ID a expiraci přihlašovacího secretu
+vracejí outputs `portal_url`, `portal_name`, `portal_auth_client_id` a
+`portal_auth_secret_expires_at`. Publikování aplikace popisuje
+[`web/README.md`](../../web/README.md).
+
+Při přidávání portálu úplný plán ukázal i nesouvisející změnu Storage
+`network_rules`. Pro tuto konkrétní aktualizaci je připravený cílený plán pro
+`azurerm_cognitive_account.foundry`, `azuread_application_redirect_uris.portal`
+a `azuread_service_principal.portal`, který zahrne i závislosti portálu.
+Storage ani modelové deploymenty tento plán nemění. `-target` není určené pro
+běžné deploymenty; před budoucím úplným apply nejprve prověřte síťový drift.
 
 Pokud později změníte identity:
 

@@ -34,14 +34,35 @@ output "foundry_project_id" {
 }
 
 output "foundry_model_deployments" {
-  description = "Nasazené modely a jejich Data Zone kapacity."
+  description = "Nasazené modely, formáty, deployment typy a kapacity."
   value = {
     for name, deployment in var.foundry_model_deployments :
     name => {
+      format   = deployment.model_format
       model    = deployment.model_name
       version  = deployment.model_version
       sku      = deployment.sku_name
       capacity = deployment.capacity
     }
   }
+}
+
+output "portal_name" {
+  description = "Název Azure Static Web App pro publikování statického katalogu."
+  value       = azurerm_static_web_app.portal.name
+}
+
+output "portal_url" {
+  description = "HTTPS adresa účastnického portálu chráněného tenant-specific Easy Auth."
+  value       = "https://${azurerm_static_web_app.portal.default_host_name}"
+}
+
+output "portal_auth_client_id" {
+  description = "Client ID single-tenant Entra registrace; nejde o secret."
+  value       = azuread_application_registration.portal.client_id
+}
+
+output "portal_auth_secret_expires_at" {
+  description = "Expirace přihlašovacího secretu; před tímto datem proveďte rotaci Terraformem."
+  value       = azuread_application_password.portal.end_date
 }

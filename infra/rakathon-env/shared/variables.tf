@@ -16,6 +16,12 @@ variable "resource_group_name" {
   default     = "rg-rakathon-shared"
 }
 
+variable "portal_location" {
+  description = "Azure region pro Static Web Apps; evropský West Europe aktuálně nepřijímá nové zákazníky."
+  type        = string
+  default     = "eastus2"
+}
+
 variable "project_name_compact" {
   description = "Krátký lowercase alfanumerický prefix pro globálně unikátní Storage name."
   type        = string
@@ -105,6 +111,7 @@ variable "foundry_project_name" {
 variable "foundry_model_deployments" {
   description = "Model deploymenty spravované v Microsoft Foundry resource."
   type = map(object({
+    model_format  = string
     model_name    = string
     model_version = string
     sku_name      = string
@@ -113,25 +120,72 @@ variable "foundry_model_deployments" {
 
   default = {
     gpt-6-1-sol-dz-eu = {
+      model_format  = "OpenAI"
       model_name    = "gpt-6.1-sol"
       model_version = "2026-09-29"
       sku_name      = "DataZoneStandard"
       capacity      = 3333
     }
     gpt-6-luna-dz-eu = {
+      model_format  = "OpenAI"
       model_name    = "gpt-6-luna"
       model_version = "2026-09-22"
       sku_name      = "DataZoneStandard"
       capacity      = 3333
+    }
+    grok-4-7-global = {
+      model_format  = "xAI"
+      model_name    = "grok-4.7"
+      model_version = "1"
+      sku_name      = "GlobalStandard"
+      capacity      = 10000
+    }
+    gpt-6-astra-global = {
+      model_format  = "OpenAI"
+      model_name    = "gpt-6-astra"
+      model_version = "2026-09-03"
+      sku_name      = "GlobalStandard"
+      capacity      = 10000
+    }
+    mai-image-2-5-global = {
+      model_format  = "Microsoft"
+      model_name    = "MAI-Image-2.5"
+      model_version = "2026-06-02"
+      sku_name      = "GlobalStandard"
+      capacity      = 10
+    }
+    deepseek-v4-pro-global = {
+      model_format  = "DeepSeek"
+      model_name    = "DeepSeek-V4-Pro"
+      model_version = "2026-04-23"
+      sku_name      = "GlobalStandard"
+      capacity      = 10000
+    }
+    mai-thinking-1-global = {
+      model_format  = "Microsoft"
+      model_name    = "MAI-Thinking-1"
+      model_version = "2026-06-01"
+      sku_name      = "GlobalStandard"
+      capacity      = 1500
+    }
+    kimi-k2-7-code-global = {
+      model_format  = "MoonshotAI"
+      model_name    = "Kimi-K2.7-Code"
+      model_version = "2026-06-12"
+      sku_name      = "GlobalStandard"
+      capacity      = 2000
     }
   }
 
   validation {
     condition = alltrue([
       for deployment in values(var.foundry_model_deployments) :
-      deployment.capacity > 0 && floor(deployment.capacity) == deployment.capacity
+      deployment.capacity > 0 &&
+      floor(deployment.capacity) == deployment.capacity &&
+      contains(["OpenAI", "xAI", "DeepSeek", "Microsoft", "MoonshotAI"], deployment.model_format) &&
+      contains(["DataZoneStandard", "GlobalStandard"], deployment.sku_name)
     ])
-    error_message = "Kapacita každého model deploymentu musí být kladné celé číslo."
+    error_message = "Deployment musí mít podporovaný model format/SKU a kladnou celočíselnou kapacitu."
   }
 }
 

@@ -36,3 +36,12 @@ crash.*.log
 
 # Generated Temporary Access Pass handoff files
 **/team-user-access/
+
+# Static participant portal and locally exported credentials
+**/node_modules/
+/web/dist/
+/web/public/catalog.json
+/web/public/catalog-keys.json
+/web/public/.catalog*.tmp-*
+/web/test-results/
+/web/playwright-report/

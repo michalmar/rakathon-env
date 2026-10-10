@@ -67,7 +67,7 @@ resource "azurerm_cognitive_account" "foundry" {
   sku_name                           = "S0"
   project_management_enabled         = true
   public_network_access_enabled      = var.foundry_public_network_access_enabled
-  local_auth_enabled                 = false
+  local_auth_enabled                 = true
   outbound_network_access_restricted = var.foundry_outbound_network_access_restricted
 
   identity {
@@ -104,7 +104,7 @@ resource "azurerm_cognitive_deployment" "models" {
   version_upgrade_option = "OnceNewDefaultVersionAvailable"
 
   model {
-    format  = "OpenAI"
+    format  = each.value.model_format
     name    = each.value.model_name
     version = each.value.model_version
   }
