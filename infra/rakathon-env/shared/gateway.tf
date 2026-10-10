@@ -61,13 +61,13 @@ resource "azurerm_api_management_api_policy" "openai" {
 
 locals {
   apim_operations = {
-    chat       = { method = "POST", url = "/chat/completions", policy = "llm" }
-    responses  = { method = "POST", url = "/responses", policy = "llm" }
-    images     = { method = "POST", url = "/images/generations", policy = "image" }
-    models     = { method = "GET", url = "/models", policy = null }
-    get_any    = { method = "GET", url = "/*", policy = null }
-    post_any   = { method = "POST", url = "/*", policy = null }
-    delete_any = { method = "DELETE", url = "/*", policy = null }
+    chat      = { method = "POST", url = "/chat/completions", policy = "llm", params = [] }
+    responses = { method = "POST", url = "/responses", policy = "llm", params = [] }
+    images    = { method = "POST", url = "/images/generations", policy = "image", params = [] }
+    models    = { method = "GET", url = "/models", policy = null, params = [] }
+    # Jen explicitní operace: žádný wildcard, takže jakákoli jiná cesta (včetně POST) skončí 404 už na APIM.
+    response_get    = { method = "GET", url = "/responses/{response_id}", policy = null, params = ["response_id"] }
+    response_delete = { method = "DELETE", url = "/responses/{response_id}", policy = null, params = ["response_id"] }
   }
 }
 
@@ -81,6 +81,15 @@ resource "azurerm_api_management_api_operation" "ops" {
   display_name        = "${each.value.method} ${each.value.url}"
   method              = each.value.method
   url_template        = each.value.url
+
+  dynamic "template_parameter" {
+    for_each = each.value.params
+    content {
+      name     = template_parameter.value
+      required = true
+      type     = "string"
+    }
+  }
 
   response {
     status_code = 200

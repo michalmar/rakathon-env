@@ -91,3 +91,18 @@ output "apim_law_id" {
   description = "ARM ID Log Analytics workspace s logy APIM."
   value       = azurerm_log_analytics_workspace.gateway.id
 }
+
+output "cost_job_name" {
+  description = "Logic App, která každých 5 min vyhodnocuje rozpočty a suspenduje týmy."
+  value       = azapi_resource.cost_job.name
+}
+
+output "apim_law_customer_id" {
+  description = "Workspace (customer) ID LAW pro `az monitor log-analytics query -w`."
+  value       = azurerm_log_analytics_workspace.gateway.workspace_id
+}
+
+output "cost_workbook_url" {
+  description = "Odkaz na Azure Monitor Workbook s náklady (vyžaduje přístup do Azure Portal tenantu)."
+  value       = "https://portal.azure.com/#@7f0c84c5-bbea-48b2-bad1-6baf63d0c73c/resource${azurerm_application_insights_workbook.costs.id}/workbook"
+}

@@ -218,9 +218,9 @@ variable "apim_tokens_per_minute" {
 }
 
 variable "apim_token_quota" {
-  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period."
+  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period (všechny modely dohromady). 4M/den = nejhůře ~200 USD/den při výhradně výstupních tokenech nejdražšího modelu (astra 50 USD/1M)."
   type        = number
-  default     = 20000000
+  default     = 4000000
 }
 
 variable "apim_token_quota_period" {
@@ -233,4 +233,88 @@ variable "apim_image_calls_per_minute" {
   description = "Limit požadavků na generování obrázků za minutu na subscription (tým)."
   type        = number
   default     = 30
+}
+
+variable "apim_enforce_budget" {
+  description = "Zapnutí automatického suspendování subscription při překročení rozpočtu (false = jen měření a alerty)."
+  type        = bool
+  default     = true
+}
+
+variable "model_prices" {
+  description = <<-EOT
+    Ceník v USD podle názvu deploymentu: input_per_1m / output_per_1m = cena za 1M tokenů, per_image = cena za jeden obrázek.
+    Zdroj: Azure Retail Prices API (serviceName 'Foundry Models', swedencentral, Standard, krátký kontext, bez cache slevy) k 2026-10-10.
+    Deployment mimo mapu se účtuje nejvyšší cenou z mapy (konzervativně).
+  EOT
+  type = map(object({
+    input_per_1m  = number
+    output_per_1m = number
+    per_image     = number
+  }))
+
+  default = {
+    # Azure OpenAI GPT6, '6.1-sol ShortCo Inp/Opt Std DZ'
+    gpt-6-1-sol-dz-eu = { input_per_1m = 2.4, output_per_1m = 12.0, per_image = 0 }
+    # Azure OpenAI GPT6, '6-luna ShortCo Inp/Opt Std DZ'
+    gpt-6-luna-dz-eu = { input_per_1m = 0.12, output_per_1m = 0.6, per_image = 0 }
+    # Azure Grok Models, '4.7 Inp/Outp glbl'
+    grok-4-7-global = { input_per_1m = 2.0, output_per_1m = 6.0, per_image = 0 }
+    # Azure OpenAI GPT6, '6-astra ShortCo Inp/Opt Std Gl'
+    gpt-6-astra-global = { input_per_1m = 10.0, output_per_1m = 50.0, per_image = 0 }
+    # Azure Deepseek Models, 'V4 Pro Inp/Outp glbl' (0.00174 / 0.00348 USD za 1K)
+    deepseek-v4-pro-global = { input_per_1m = 1.74, output_per_1m = 3.48, per_image = 0 }
+    # Azure Kimi, 'K2.7 Code Inp/Outp glbl' (0.00095 / 0.004 USD za 1K)
+    kimi-k2-7-code-global = { input_per_1m = 0.95, output_per_1m = 4.0, per_image = 0 }
+    # MAI Models, 'MAI-Thinking-1 Inp/Opt glbl'
+    mai-thinking-1-global = { input_per_1m = 2.0, output_per_1m = 8.0, per_image = 0 }
+    # ODHAD: MAI Image 2.5 se účtuje tokeny (image output 0.047 USD/1K tokenů); cena za obrázek předpokládá ~4 000 výstupních tokenů (horní odhad pro 1024x1024) => ~0.19 USD, zaokrouhleno na 0.20
+    mai-image-2-5-global = { input_per_1m = 0, output_per_1m = 0, per_image = 0.20 }
+  }
+}
+
+variable "overall_budget_usd" {
+  description = "Celkový rozpočet celé akce (všechny týmy) v USD."
+  type        = number
+  default     = 5000
+}
+
+variable "team_budget_usd" {
+  description = "Výchozí rozpočet jednoho týmu v USD. Součet týmových rozpočtů smí být vyšší než overall_budget_usd."
+  type        = number
+  default     = 1000
+}
+
+variable "team_budget_overrides" {
+  description = "Výjimky z týmového rozpočtu: název subscription (teamNN) => rozpočet v USD."
+  type        = map(number)
+  default     = {}
+}
+
+variable "budget_warn_ratio" {
+  description = "Podíl rozpočtu, od kterého se posílá varování (0.9 = 90 %)."
+  type        = number
+  default     = 0.9
+}
+
+variable "overall_revoke_safety_margin_usd" {
+  description = "Rezerva: všechny týmy se suspendují už při dosažení overall_budget_usd mínus tato částka (logy mají ~2,5 min zpoždění + job běží po 5 min)."
+  type        = number
+  default     = 200
+}
+
+variable "budget_window_start" {
+  description = "Začátek rozpočtového okna (UTC ISO 8601); spotřeba se počítá od tohoto okamžiku."
+  type        = string
+  default     = "2026-10-10T00:00:00Z"
+}
+
+variable "budget_alert_emails" {
+  description = "E-maily příjemců alertů o rozpočtu."
+  type        = list(string)
+  default = [
+    "azure.otp@vzp.cz",
+    "michal.marusan@microsoft.com",
+    "Vladimir.Vasicek@microsoft.com",
+  ]
 }
