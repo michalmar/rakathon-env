@@ -198,3 +198,39 @@ variable "tags" {
     scope       = "shared"
   }
 }
+
+variable "apim_name" {
+  description = "Název APIM. Prázdné = apim-<project>-<suffix>."
+  type        = string
+  default     = ""
+}
+
+variable "apim_publisher_email" {
+  description = "Publisher e-mail pro APIM."
+  type        = string
+  default     = "noreply@microsoft.com"
+}
+
+variable "apim_tokens_per_minute" {
+  description = "Limit tokenů za minutu na subscription (tým)."
+  type        = number
+  default     = 200000
+}
+
+variable "apim_token_quota" {
+  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period."
+  type        = number
+  default     = 20000000
+}
+
+variable "apim_token_quota_period" {
+  description = "Perioda kvóty: Hourly, Daily, Weekly, Monthly, Yearly."
+  type        = string
+  default     = "Daily"
+}
+
+variable "apim_image_calls_per_minute" {
+  description = "Limit požadavků na generování obrázků za minutu na subscription (tým)."
+  type        = number
+  default     = 30
+}

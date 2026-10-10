@@ -1,0 +1,19 @@
+<policies>
+  <inbound>
+    <base />
+    <set-backend-service base-url="${backend_url}" />
+    <!-- klíč APIM subscription nesmí odejít do Foundry (api-key má přednost před Bearer) -->
+    <set-header name="api-key" exists-action="delete" />
+    <set-header name="Authorization" exists-action="delete" />
+    <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

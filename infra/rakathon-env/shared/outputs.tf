@@ -66,3 +66,28 @@ output "portal_auth_secret_expires_at" {
   description = "Expirace přihlašovacího secretu; před tímto datem proveďte rotaci Terraformem."
   value       = azuread_application_password.portal.end_date
 }
+
+output "apim_name" {
+  description = "Název APIM (BasicV2) před sdílenými Foundry modely."
+  value       = azurerm_api_management.gateway.name
+}
+
+output "apim_id" {
+  description = "ARM ID APIM."
+  value       = azurerm_api_management.gateway.id
+}
+
+output "apim_url" {
+  description = "Klientský base URL (OpenAI v1); `model` v těle = název deploymentu."
+  value       = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
+}
+
+output "apim_product_id" {
+  description = "ID produktu hackathon (pro zakládání subscription týmů)."
+  value       = azurerm_api_management_product.hackathon.product_id
+}
+
+output "apim_law_id" {
+  description = "ARM ID Log Analytics workspace s logy APIM."
+  value       = azurerm_log_analytics_workspace.gateway.id
+}
