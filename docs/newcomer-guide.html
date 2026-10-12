@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en" data-default-accent="blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rakathon: team newcomer guide</title>
+<meta name="description" content="Sign in with your team account, get your API key, call a model, and use your hackathon workspace.">
+<!-- Stable key for read-progress storage. Keep it if this document may be
+     served from more than one path; delete it and the pathname is used. -->
+<meta name="doc-id" content="rakathon-team-newcomer-guide">
+
+<!-- 1. Theme bootstrap. Must be the first script in <head>. -->
+<script data-doc-bootstrap>
+/* Inline in the head before styles with sync-head.js. No deferred bootstrap. */
+(() => {
+  "use strict";
+  const root = document.documentElement;
+  const params = new URLSearchParams(location.search);
+  const id = document.querySelector('meta[name="doc-id"]')?.content ||
+    location.pathname.replace(/\.standalone(?=\.html$)/i, "");
+  const prefix = "html-docs:" + id + ":";
+  const choices = { theme: ["light", "dark"], accent: ["blue", "orange", "green"] };
+  const read = (name) => {
+    try { return localStorage.getItem(prefix + name); }
+    catch { return null; /* Storage may be unavailable for local files. */ }
+  };
+  const write = (name, value) => {
+    try { localStorage.setItem(prefix + name, value); }
+    catch { /* The current view still works without persistence. */ }
+  };
+  function refresh() {
+    for (const name of Object.keys(choices)) {
+      const current = root.getAttribute("data-" + name);
+      const next = choices[name][(choices[name].indexOf(current) + 1) % choices[name].length];
+      document.querySelectorAll('[data-action="toggle-' + name + '"]').forEach(button => {
+        button.textContent = name === "theme" ? (next === "dark" ? "Dark" : "Light") :
+          "Accent: " + current[0].toUpperCase() + current.slice(1);
+        button.setAttribute("aria-label", name === "theme" ? "Switch to " + next + " theme" :
+          "Accent: " + current + ". Switch to " + next);
+      });
+    }
+  }
+  for (const [name, values] of Object.entries(choices)) {
+    const fallback = name === "theme" && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : values[0];
+    const value = [params.get(name), read(name), root.getAttribute("data-default-" + name), fallback]
+      .find(candidate => values.includes(candidate));
+    root.setAttribute("data-" + name, value);
+  }
+  root.classList.add("js");
+  if (["slides", "sheet"].includes(params.get("view"))) root.setAttribute("data-view", params.get("view"));
+
+  // Print what is on screen. data-print selects the matching print stylesheet.
+  const printTarget = () => {
+    if (document.querySelector(".deck-stage")) return "slides";
+    const view = root.getAttribute("data-view");
+    if (view === "slides" || (view === "sheet" && document.querySelector(".sheet"))) return view;
+    return document.querySelector(".doc") || !document.querySelector(".sheet") ? "read" : "sheet";
+  };
+  let printing = null;
+  addEventListener("beforeprint", () => {
+    if (root.hasAttribute("data-print")) return; // Set by an automated export.
+    const target = printTarget();
+    printing = document.title;
+    root.setAttribute("data-print", target);
+    // The browser proposes the title as the PDF file name.
+    if (target !== "read" && document.querySelector(".doc")) {
+      document.title += target === "slides" ? " - Slides" : " - Sheet";
+    }
+  });
+  addEventListener("afterprint", () => {
+    if (printing === null) return;
+    root.removeAttribute("data-print");
+    document.title = printing;
+    printing = null;
+  });
+
+  // Keep the display awake while presenting, like presentation software does.
+  let lock = null;
+  let awake = false;
+  async function holdScreen() {
+    if (!awake || lock || document.visibilityState !== "visible" || !navigator.wakeLock) return;
+    try {
+      const sentinel = await navigator.wakeLock.request("screen");
+      if (!awake || lock) { sentinel.release(); return; }
+      lock = sentinel;
+      root.setAttribute("data-awake", "");
+      sentinel.addEventListener("release", () => {
+        if (lock !== sentinel) return;
+        lock = null;
+        root.removeAttribute("data-awake");
+      });
+    } catch { /* Denied by battery saver or an embedding policy; retried on input. */ }
+  }
+  function keepAwake(on) {
+    awake = !!on;
+    if (awake) holdScreen();
+    else if (lock) lock.release();
+  }
+  // The browser drops the lock when the tab is hidden; some require a gesture.
+  document.addEventListener("visibilitychange", holdScreen);
+  document.addEventListener("pointerdown", holdScreen);
+  document.addEventListener("keydown", holdScreen);
+
+  window.HtmlDocs = { read, write, refresh, keepAwake };
+  document.addEventListener("DOMContentLoaded", refresh);
+  document.addEventListener("click", event => {
+    if (event.target.closest('[data-action="print"]')) window.print();
+  });
+  document.addEventListener("click", event => {
+    const button = event.target.closest('[data-action="toggle-theme"], [data-action="toggle-accent"]');
+    if (!button) return;
+    const name = button.getAttribute("data-action").slice(7);
+    const values = choices[name];
+    const next = values[(values.indexOf(root.getAttribute("data-" + name)) + 1) % values.length];
+    root.setAttribute("data-" + name, next);
+    write(name, next);
+    // Replace a URL override too, so reloading preserves a deliberate change.
+    const url = new URL(location.href);
+    if (url.searchParams.has(name)) {
+      url.searchParams.set(name, next);
+      history.replaceState(null, "", url.href);
+    }
+    refresh();
+  });
+})();
+</script>
+
+<!-- 2. Canonical design tokens. Copied verbatim from assets/tokens.css.
+     Never edit these values in a page. -->
+<style data-doc-tokens>
+/* Canonical tokens. Inline with sync-head.js; one accent family at a time. */
+:root {
+  color-scheme: light;
+  --bg: #fafafa; --surface: #ffffff; --surface-2: #f2f2f2; --surface-3: #e8e8e8;
+  --border: #dedede; --border-strong: #b8b8b8;
+  --text: #161616; --text-muted: #565656; --text-faint: #686868;
+  --accent-light: #0068bd; --accent-dark: #69b8ff;
+  --accent: var(--accent-light);
+  --accent-strong: var(--accent);
+  --accent-quiet: var(--accent);
+  --accent-soft: color-mix(in srgb, var(--accent) 9%, var(--bg));
+  --accent-border: color-mix(in srgb, var(--accent) 36%, var(--bg));
+  --warn: var(--accent); --warn-soft: var(--accent-soft); --warn-border: var(--accent-border);
+  --code-bg: var(--surface-2); --code-border: var(--border);
+  --focus: var(--accent);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-2: 0 2px 4px rgba(0,0,0,.04), 0 12px 28px rgba(0,0,0,.06);
+  --radius: 10px; --radius-sm: 6px; --canvas: 1160px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas, "SF Mono", "Liberation Mono", Menlo, monospace;
+}
+/* Screen only: every PDF and printout uses the light palette. */
+@media screen {
+  [data-theme="dark"], :root:not([data-theme])[data-default-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101010; --surface: #191919; --surface-2: #232323; --surface-3: #2c2c2c;
+    --border: #363636; --border-strong: #595959;
+    --text: #f2f2f2; --text-muted: #b5b5b5; --text-faint: #a0a0a0;
+    --accent: var(--accent-dark);
+    --shadow-1: 0 1px 2px rgba(0,0,0,.3);
+    --shadow-2: 0 2px 4px rgba(0,0,0,.3), 0 12px 28px rgba(0,0,0,.4);
+  }
+}
+[data-accent="orange"], :root:not([data-accent])[data-default-accent="orange"] {
+  --accent-light: #a94000; --accent-dark: #ffae72;
+}
+[data-accent="green"], :root:not([data-accent])[data-default-accent="green"] {
+  --accent-light: #137344; --accent-dark: #6cd6a0;
+}
+</style>
+
+<!-- 3. Shared assets. Adjust the relative path to the assets folder.
+     sheet.css/js serve an optional companion sheet; keep them either way. -->
+<link rel="stylesheet" href="assets/article.css">
+<link rel="stylesheet" href="assets/slides.css">
+<link rel="stylesheet" href="assets/sheet.css">
+<script src="assets/article.js" defer></script>
+<script src="assets/slides.js" defer></script>
+<script src="assets/sheet.js" defer></script>
+</head>
+
+<body>
+
+<!--
+MIT License
+
+Copyright (c) 2026 Tomáš Kubica
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+<!-- 4. Controls. Keep only the views this document offers: remove Slides when
+     it is reading-only; add the Sheet control with a companion sheet (11).
+     PDF prints whichever view is on screen. -->
+<div class="controls" role="group" aria-label="Article controls">
+  <button type="button" class="ctrl" data-action="expand-all">Expand all</button>
+  <button type="button" class="ctrl" data-action="collapse-all">Collapse all</button>
+  <button type="button" class="ctrl" data-action="toggle-slides" aria-pressed="false">Slides</button>
+  <!-- <button type="button" class="ctrl" data-action="toggle-sheet" aria-pressed="false">Sheet</button> -->
+  <button type="button" class="ctrl" data-action="print" aria-label="Save the current view as PDF or print it">PDF</button>
+  <button type="button" class="ctrl" data-action="toggle-theme">Dark</button>
+  <button type="button" class="ctrl" data-action="toggle-accent">Accent: Blue</button>
+</div>
+
+<div class="doc">
+
+  <!-- 5. Header -->
+  <header class="doc-header" id="opening">
+    <div class="slide-content slide-content--title">
+      <p class="slide-eyebrow">Rakathon / Team onboarding</p>
+      <h2 class="slide-title">Sign in.<br><em>Start building.</em></h2>
+      <p class="slide-lead">Your team account connects you to models, challenge data, and your workspace.</p>
+    </div>
+    <p class="eyebrow">Rakathon / Team onboarding</p>
+    <h1>Sign in and start building</h1>
+    <p class="subtitle">Get your team API key, make a first model call, and find your challenge data and Azure workspace.</p>
+    <p>Participant portal: <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/">https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/</a></p>
+    <p class="meta">Configuration reviewed <time datetime="2026-10-12">12 October 2026</time>. Not a live inventory.</p>
+  </header>
+
+  <!-- 6. Optional navigation: add only links to material that exists. -->
+
+  <!-- 7. Table of contents. Add it once the article has several chapters. -->
+  <nav class="toc" aria-label="Contents">
+    <p class="toc-label">Contents</p>
+    <ol>
+      <li><a href="#ch-access">Team access</a></li>
+      <li><a href="#ch-build">Models, data, and workspace</a></li>
+      <li><a href="#ch-support">Limits and help</a></li>
+    </ol>
+  </nav>
+
+  <!-- 8. Main content -->
+  <main>
+
+    <section class="chapter" id="ch-access">
+      <h2 class="chapter-label">Team access</h2>
+
+      <!-- Lead card: unnumbered, open on load. Only this card carries data-open. -->
+      <article class="card card--lead" id="card-resources" data-open>
+        <div class="slide-content">
+          <h2 class="slide-title">The portal brings<br><em>your access together.</em></h2>
+          <img src="assets/images/participant-portal.png" alt="Participant portal navigation, model catalog heading, and API key section." width="2722" height="1774">
+          <p class="slide-lead">Example: non-team account, no key. Account and tenant identifiers redacted.</p>
+        </div>
+        <h3 class="card-head">
+          <button type="button" class="card-toggle" aria-expanded="true">
+            <span class="card-num" aria-hidden="true"></span>
+            <span class="card-titles">
+              <span class="card-title">Your team can use shared models and its own workspace</span>
+              <span class="card-sub">Start in the participant portal; manage only your own resource group.</span>
+            </span>
+            <span class="card-mark" aria-hidden="true"></span>
+          </button>
+        </h3>
+        <div class="card-body">
+          <p>The <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/">participant portal</a> shows your team API key, model deployment names, gateway URL, and challenge file list. Shared models are reached through Azure API Management (APIM), the event's AI gateway.</p>
+          <div class="summary-grid">
+            <div class="summary-item"><span class="summary-label">Models</span>Use your team key for shared text/code models and image generation.</div>
+            <div class="summary-item"><span class="summary-label">Data</span>Download read-only files for VZP challenges through Azure Portal.</div>
+            <div class="summary-item"><span class="summary-label">Workspace</span>Create application resources in your assigned <code>rg-teamNN</code>.</div>
+          </div>
+          <p><code>teamNN</code> means your assigned team, such as <code>team01</code>. Teams do not have direct access to Microsoft Foundry's portal or Agent Service. The model and file lists are snapshots; check <strong>Stav k</strong> (snapshot date) in the portal.</p>
+          <figure class="figure">
+            <a class="zoom" href="assets/images/participant-portal.png"><img src="assets/images/participant-portal.png" alt="Participant portal with navigation for the team API key, models, and VZP challenge data." width="2722" height="1774"></a>
+            <figcaption>Portal screenshot supplied for this guide; account and tenant identifiers are redacted. This example uses a non-team account, so it shows no API key. Use your assigned team account to see your own key.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <article class="card" id="card-portal">
+        <div class="slide-content">
+          <h2 class="slide-title">Scan to open<br><em>the participant portal.</em></h2>
+          <img src="assets/images/participant-portal-qr.png" alt="QR code for the participant portal." width="450" height="450">
+          <p class="slide-lead">https://yellow-mushroom-06f2eb80f<wbr>.2.azurestaticapps.net/</p>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">The URL and QR code open the same participant portal</span><span class="card-sub">Open the link or scan, then use your assigned team account.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Open <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/">https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/</a> or scan the QR code. Sign in with the team account supplied by the organizers.</p>
+          <figure class="figure" style="max-width: 280px">
+            <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/"><img src="assets/images/participant-portal-qr.png" alt="Scan to open https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/." width="450" height="450"></a>
+            <figcaption>Scan to open the participant portal.</figcaption>
+          </figure>
+        </div>
+      </article>
+
+      <!-- Numbered card. Numbers come from CSS; leave card-num empty. -->
+      <article class="card" id="card-login">
+        <div class="slide-content">
+          <h2 class="slide-title">Use the account<br><em>assigned to your team.</em></h2>
+          <ul class="slide-points">
+            <li class="frag">Open the private team handoff</li>
+            <li class="frag">Sign in with its full username and TAP</li>
+            <li class="frag">Check the username in the portal</li>
+          </ul>
+        </div>
+        <h3 class="card-head">
+          <button type="button" class="card-toggle" aria-expanded="false">
+            <span class="card-num" aria-hidden="true"></span>
+            <span class="card-titles">
+              <span class="card-title">The organizer-supplied account unlocks your team access</span>
+              <span class="card-sub">A Temporary Access Pass signs you in; it is not your API key.</span>
+            </span>
+            <span class="card-mark" aria-hidden="true"></span>
+          </button>
+        </h3>
+        <div class="card-body">
+          <ol class="steps">
+            <li><h4>Get your private handoff</h4><p>The organizers supply <code>teamNN.md</code>: your full username, Temporary Access Pass (TAP), validity window, and backup API connection details. Do not commit it or share it outside your team.</p></li>
+            <li><h4>Open the participant portal</h4><p>Use a separate browser profile or private window if Microsoft already has another account signed in. Enter the full team username from the handoff, not your usual personal/work account.</p></li>
+            <li><h4>Complete Microsoft sign-in</h4><p>Use the TAP at Microsoft's sign-in prompt and follow any authentication setup instructions shown. Check the signed-in username in the participant portal.</p></li>
+          </ol>
+          <aside class="callout callout--warning"><p class="callout-label">Warning</p><p>The TAP is not the model API key. It works only within the handoff's validity window and may be single-use. If it is expired, not yet valid, already used, or sign-in cannot finish, ask the organizers for help.</p></aside>
+        </div>
+      </article>
+      <article class="card" id="card-key">
+        <div class="slide-content">
+          <h2 class="slide-title">Copy your key.<br><em>Keep it private.</em></h2>
+          <ul class="slide-points"><li class="frag">Váš API klíč: correct team, active state</li><li class="frag">Copy key, base URL, and deployment name</li><li class="frag">Send the key in the api-key header</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Your team key authenticates every gateway model call</span><span class="card-sub">Use the copy icon in Váš API klíč; keep secrets out of Git and client-side code.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <ol class="steps">
+            <li><h4>Check your team</h4><p>Open <strong>Váš API klíč</strong> ("Your API key"). Confirm the team matches your handoff and its state is <strong>aktivní</strong> ("active").</p></li>
+            <li><h4>Copy the connection details</h4><p>Use the copy icon beside <strong>API klíč (hlavička api-key)</strong>; the eye icon reveals or hides it. Copy <strong>Base URL (OpenAI v1)</strong>. Under <strong>Modely</strong>, expand a model and copy <strong>Deployment / model v SDK</strong>.</p></li>
+            <li><h4>Store the key privately</h4><p>Use a local secret/environment variable or server-side secret store. Never commit the key, paste it in public chat, expose it in screenshots, or embed it in browser-side code. The private handoff is a backup if the portal cannot load the key.</p></li>
+          </ol>
+          <p>The gateway is <code>https://apim-rakathon-q7146n.azure-api.net/openai/v1</code>. The same key works across its deployments. Send it in the <code>api-key</code> header: <code>Authorization: Bearer</code> alone does not authenticate requests. Do not use a direct Foundry endpoint.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="chapter" id="ch-build">
+      <h2 class="chapter-label">Models, data, and workspace</h2>
+      <article class="card" id="card-first-call">
+        <div class="slide-content">
+          <h2 class="slide-title">Prove the connection<br><em>with one small call.</em></h2>
+          <ul class="slide-points"><li class="frag">Choose a listed text deployment</li><li class="frag">Use its deployment name as model</li><li class="frag">Expect an assistant reply in JSON</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">A small first call confirms your model connection</span><span class="card-sub">Use the deployment name, not the model's display name.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Choose a text deployment in <strong>Modely</strong>. For example, the configured <code>gpt-6-luna</code> deployment is <code>gpt-6-luna-dz-eu</code>; confirm it is listed before using it. Replace the example's <code>model</code> value if you choose another text deployment.</p>
+          <p>Run this in Bash with curl installed. The key prompt does not echo the key or put its literal value into shell history. A successful request returns JSON with an assistant reply.</p>
+          <div class="code"><p class="code-label">Bash</p><pre><code>export AZURE_CONFIG_DIR="$HOME/.azure-rak"
+read -r -s -p "Team API key: " API_KEY; printf '\n'
+export API_KEY
+curl --fail-with-body --silent --show-error \
+  https://apim-rakathon-q7146n.azure-api.net/openai/v1/chat/completions \
+  -H "api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-6-luna-dz-eu","messages":[{"role":"user","content":"Say hello to our hackathon team."}]}'
+unset API_KEY</code></pre></div>
+          <div class="reveal">
+            <button type="button" class="reveal-toggle" aria-expanded="false">Use the Python OpenAI SDK instead</button>
+            <div class="reveal-body">
+              <p>Install the <code>openai</code> package in your project's environment. The SDK requires <code>api_key</code>; <code>"unused"</code> is a placeholder, not a credential. The real gateway key goes in <code>default_headers</code>.</p>
+              <div class="code"><p class="code-label">Python</p><pre><code>from getpass import getpass
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://apim-rakathon-q7146n.azure-api.net/openai/v1/",
+    api_key="unused",
+    default_headers={"api-key": getpass("Team API key: ")},
+)
+reply = client.chat.completions.create(
+    model="gpt-6-luna-dz-eu",
+    messages=[{"role": "user", "content": "Say hello to our hackathon team."}],
+)
+print(reply.choices[0].message.content)</code></pre></div>
+            </div>
+          </div>
+          <p>The configured model families include OpenAI, xAI, DeepSeek, Moonshot AI / Kimi, and Microsoft AI. Image generation uses <code>/images/generations</code>, not <code>/chat/completions</code>; not every model supports every API or parameter. Use the <strong>EU Data Zone</strong> versus <strong>Global</strong> labels to choose the processing scope allowed for your challenge. Global processing is not restricted to Europe.</p>
+        </div>
+      </article>
+      <article class="card" id="card-data">
+        <div class="slide-content">
+          <h2 class="slide-title">Download challenge data<br><em>through Azure Portal.</em></h2>
+          <ul class="slide-points"><li class="frag">Use data only for permitted VZP challenges</li><li class="frag">Storage: Containers, then data, then Download</li><li class="frag">Authenticate with the same team account</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">The catalog points to read-only VZP challenge files</span><span class="card-sub">File downloads happen in Azure Portal, not the participant portal.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Use these data only when relevant and permitted for your VZP challenge. In <strong>Datové podklady pouze pro výzvy VZP</strong>, select <strong>Otevřít storage v portálu</strong> ("Open storage in portal").</p>
+          <ol class="steps">
+            <li><h4>Use your team identity</h4><p>In Azure Portal, sign in with the same team account. If necessary, switch the directory to the event directory supplied by the organizers.</p></li>
+            <li><h4>Open the data container</h4><p>In storage account <code>strakathondataq7146n</code>, choose <strong>Containers / Kontejnery</strong>, then <code>data</code>.</p></li>
+            <li><h4>Download your file</h4><p>Use <strong>Microsoft Entra ID</strong> authentication, select a file, then <strong>Download / Stáhnout</strong>.</p></li>
+          </ol>
+          <p>The repository's 9 October snapshot lists <code>Rakathon_Datove_rozhrani.docx</code>, <code>Rakhaton2026.csv</code>, and <code>Rakhaton2026.zip</code>. Check the portal for the current published snapshot.</p>
+          <p>The participant portal does not download files or generate download links. Azure data access is separate from portal sign-in: it requires Reader and Storage Blob Data Reader permissions plus an allowed storage network. Ask organizers to check both if access fails; do not request storage keys or change shared settings.</p>
+        </div>
+      </article>
+      <article class="card" id="card-workspace">
+        <div class="slide-content">
+          <h2 class="slide-title">Build inside<br><em>your own resource group.</em></h2>
+          <ul class="slide-points"><li class="frag">Azure Portal: Resource groups, then rg-teamNN</li><li class="frag">Contributor access stays within your team's group</li><li class="frag">Ask before creating paid resources</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Your resource group is the place for your application</span><span class="card-sub">Your model API budget is not an allowance for arbitrary infrastructure.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>In <a href="https://portal.azure.com/">Azure Portal</a>, open <strong>Resource groups</strong> and select your assigned <code>rg-teamNN</code>. Your team has Contributor access there: create and manage application resources within that group, subject to Azure policies and available quotas.</p>
+          <p>Manage only your own group; this is not an isolated subscription. Shared data is read-only, and other teams' groups are outside your workspace. The shared AI gateway is ready to use, so you do not need your own Foundry resource to call models.</p>
+          <p>Agree with your teammates before creating paid resources. Ask organizers about allowed services and infrastructure costs; the model API budget below is not an allowance for arbitrary Azure resources.</p>
+        </div>
+      </article>
+    </section>
+    <section class="chapter" id="ch-support">
+      <h2 class="chapter-label">Limits and help</h2>
+      <article class="card" id="card-limits">
+        <div class="slide-content">
+          <h2 class="slide-title">Small calls<br><em>keep your team moving.</em></h2>
+          <ul class="slide-points"><li class="frag">Start with short prompts and modest concurrency</li><li class="frag">Wait on rate limits; stop retry loops</li><li class="frag">Organizers confirm budgets and restore suspended access</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Shared limits can stop calls before your team finishes</span><span class="card-sub">Configured defaults are not a live usage balance.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Repository defaults are USD 1,000 per team for model usage, an organizer warning at 90%, and suspension at the team limit. The shared event limit can stop all teams earlier. The default token quota is 4 million tokens per team per day, shared across text models.</p>
+          <p>These are configured defaults, not a live balance. Organizers confirm your actual allocation and usage. Start with short prompts and modest concurrency. Stop retry loops on failures; retry rate limits with a delay and respect <code>Retry-After</code> when supplied. Only organizers can restore suspended access.</p>
+          <aside class="callout callout--source"><p class="callout-label">Source</p><p>Budget and quota defaults: repository cost-control documentation and Terraform variables, reviewed 12 October 2026. Organizer overrides may differ.</p></aside>
+        </div>
+      </article>
+      <article class="card" id="card-help">
+        <div class="slide-content">
+          <h2 class="slide-title">Share the error.<br><em>Never the secret.</em></h2>
+          <ul class="slide-points"><li class="frag">Team, endpoint, deployment, status, and time</li><li class="frag">401: key or suspended access; 429: limits</li><li class="frag">Redact the error; omit TAP and API key</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">A redacted error helps organizers resolve access problems</span><span class="card-sub">Send your team and failing action, not your credentials.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <ul>
+            <li><strong>Sign-in fails:</strong> check the full team username, TAP validity/single-use status, and whether the browser selected another account.</li>
+            <li><strong>Not a team account:</strong> sign out and use the assigned <code>teamNN</code> account.</li>
+            <li><strong>Key does not load:</strong> retry or sign in again; use the private handoff as backup and tell organizers.</li>
+            <li><strong>HTTP 401:</strong> check the <code>api-key</code> header, copied key, gateway URL, and active team state. Suspension also returns 401.</li>
+            <li><strong>Suspended / zablokováno - rozpočet:</strong> contact organizers. A new key does not restore suspended access.</li>
+            <li><strong>HTTP 404 or unsupported parameters:</strong> check the exact deployment name and API appropriate to that model.</li>
+            <li><strong>HTTP 429:</strong> rate limit, shared capacity, or token quota; wait rather than loop.</li>
+            <li><strong>Storage access denied:</strong> organizers check your account/directory, Reader plus Blob Data Reader permissions, and allowed network.</li>
+            <li><strong>Catalog fails or looks outdated:</strong> ask organizers to check the catalog export and portal deployment.</li>
+          </ul>
+          <p>Include your team name, action or endpoint path, deployment name, HTTP status, time, and a redacted error message. Never send your TAP or API key.</p>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- 9. Closing takeaway: one sentence, top level, after the last chapter. -->
+  <section class="takeaway" id="closing">
+    <p>Ready to build: the right team account, an active gateway key, and one successful model call.</p>
+    <div class="slide-content slide-content--end">
+      <p class="slide-eyebrow">Ready to build</p>
+      <h2 class="slide-title">One working call.<br><em>Then your idea.</em></h2>
+    </div>
+  </section>
+
+  <!-- 10. Footer -->
+  <footer class="doc-footer">
+    <span>Based on the repository's portal source, API examples, team provisioning, infrastructure configuration, and cost-control documentation. Model/file snapshot: 9 October 2026. Configuration review: 12 October 2026. No credentials or administrator setup included.</span>
+  </footer>
+
+</div>
+
+<!-- 11. Optional companion sheet: a one-pager or datasheet, a third depth.
+     Copy <section class="sheet"> from sheet.template.html here, after .doc,
+     use h2 for its title (the article owns the h1), and enable the Sheet
+     control above. See references/sheet.md. -->
+
+</body>
+</html>

@@ -76,6 +76,50 @@ test("filtruje soubory a prázdný výsledek vysvětlí", async ({ page }) => {
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
 });
 
+test("Azure Portal a GitHub registrace mají bezpečné odkazy a lokální obrázky", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/");
+  const azure = page.locator(".topbar").getByRole("link", { name: "Azure Portal (otevře novou kartu)", exact: true });
+  await expect(azure).toHaveAttribute("href", "https://portal.azure.com/");
+  await expect(azure).toHaveAttribute("target", "_blank");
+  await expect(azure).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(azure.locator("img")).toHaveAttribute("src", "/azure-logo.svg");
+
+  await page.getByRole("navigation", { name: "Sekce katalogu" }).getByRole("link", { name: "GitHub", exact: true }).click();
+  await expect(page).toHaveURL(/#github$/);
+  const section = page.locator("#github");
+  await expect(section.getByRole("heading", { name: "GitHub pro hackathon" })).toBeVisible();
+  const enrollment = section.getByRole("link", { name: "Registrovat se do GitHub hackathonu", exact: false });
+  const href = await enrollment.getAttribute("href");
+  if (href === null) throw new Error("Chybí registrační odkaz.");
+  const url = new URL(href);
+  expect(url.origin).toBe("https://polite-glacier-0ea2cfe0f.7.azurestaticapps.net");
+  expect(new URLSearchParams(url.hash.slice(1)).get("token")).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  await expect(enrollment).toHaveAttribute("target", "_blank");
+  await expect(enrollment).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(section.getByRole("link", { name: "Otevřít registraci z QR kódu", exact: false })).toHaveAttribute("href", href);
+  await expect(section.getByText("Enterprise Managed User (EMU)", { exact: false })).toBeVisible();
+  await expect(section.getByText("Do registrační stránky nevkládejte TAP ani API klíč.", { exact: false })).toBeVisible();
+  await expect(section.getByRole("link", { name: "Otevřít náhled registrace v plné velikosti", exact: false })).toHaveAttribute("href", "/github-enrollment.png");
+  for (const image of await page.locator(".azure-portal-logo, #github img").all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((node) => node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0)).toBe(true);
+  }
+});
+
+test("GitHub registrace je čitelná na mobilu v obou tématech", async ({ page }) => {
+  await prepare(page);
+  await page.setViewportSize({ width: 375, height: 812 });
+  for (const theme of ["light", "dark"]) {
+    await page.goto(`/?scoutTheme=${theme}#github`);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator("#github").getByRole("heading")).toBeVisible();
+    await expect(page.locator(".enrollment-qr img")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
 test("klíč týmu je maskovaný, lze ho zobrazit a zkopírovat; statický katalog klíče nenačítá", async ({ page }) => {
   const requests = await prepare(page);
   await page.goto("/");

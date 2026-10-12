@@ -13,6 +13,8 @@ const root = app;
 const notice = notification;
 let noticeTimeout: ReturnType<typeof setTimeout> | undefined;
 
+const githubEnrollmentUrl = "https://polite-glacier-0ea2cfe0f.7.azurestaticapps.net/#token=eyJ2IjoyLCJpc3N1ZSI6NTQwLCJvcmciOiJoYWNrYXRob24tZ3JlZW4tc25haWwtNzciLCJldmVudCI6IlJha2F0aG9uIDIwMjYiLCJkYXRlIjoiMjAyNi0xMC0xNiIsIm9yZ2FuaXplcnMiOlsibWFjaHYiLCJtaWNoYWxtYXIiLCJtc3VjaGFyZGEiXSwiZXhwIjoxNzkyMzY4MDAwfQ.tyLHxXawYCtMnXRn2KokxxcrLE9eO_cnYh_oqcX5zn8";
+
 const icons = {
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
@@ -23,6 +25,7 @@ const icons = {
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3Z"/>',
   zone: '<path d="M12 3 4.5 6v5.2c0 4.6 3.2 8.1 7.5 9.8 4.3-1.7 7.5-5.2 7.5-9.8V6L12 3Z"/><path d="M8.5 12h7M12 8.5v7"/>',
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+  code: '<path d="m8 5-7 7 7 7m8-14 7 7-7 7m-3-16-2 18"/>',
 } as const;
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -358,6 +361,64 @@ function storageSection(catalog: Catalog): HTMLElement {
   return section;
 }
 
+function githubSection(): HTMLElement {
+  const section = element("section", "content-section");
+  section.id = "github";
+  section.setAttribute("aria-labelledby", "github-heading");
+  const header = element("div", "section-heading");
+  const title = element("div");
+  const heading = element("h2", "", "GitHub pro hackathon");
+  heading.id = "github-heading";
+  title.append(heading, element("p", "section-description",
+    "Připojte svůj účet GitHub.com k organizaci akce. Registrace je oddělená od přihlášení do Azure."));
+  header.append(title);
+  section.append(header);
+
+  const layout = element("div", "enrollment-layout");
+  const instructions = element("div", "enrollment-instructions");
+  instructions.append(externalLink("Registrovat se do GitHub hackathonu", githubEnrollmentUrl, true));
+  const steps = element("ol", "guide-steps enrollment-steps");
+  steps.append(
+    element("li", "", "Otevřete registrační stránku tlačítkem nebo naskenujte QR kód. Ověřte, že se zobrazuje akce Rakathon 2026."),
+    element("li", "", "Zvolte Sign in with GitHub a přihlaste se osobním účtem GitHub.com, který chcete používat během akce. Pokud účet nemáte, zvolte Create a GitHub account. Enterprise Managed User (EMU) účty nejsou podporované."),
+    element("li", "", "Přečtěte si Participation Agreement včetně dopadu na licenci Copilotu. Pokud s podmínkami souhlasíte, potvrďte je a zvolte Request organization invitation."),
+    element("li", "", "Dokončete přijetí pozvánky podle pokynů registrační stránky. Pokud odkaz vypršel nebo pozvánka nepřijde, kontaktujte organizátory."),
+  );
+  instructions.append(steps, element("p", "enrollment-account-note",
+    "Použijte GitHub účet, nikoli týmový Azure účet. Do registrační stránky nevkládejte TAP ani API klíč."));
+  const qr = element("figure", "enrollment-qr");
+  const qrLink = externalLink("Otevřít registraci z QR kódu", githubEnrollmentUrl);
+  qrLink.className = "enrollment-qr-link";
+  qrLink.replaceChildren();
+  const qrImage = element("img");
+  qrImage.src = "/github-enrollment-qr.png";
+  qrImage.alt = "QR kód s úplným registračním odkazem na GitHub hackathon Rakathon 2026";
+  qrImage.width = 600;
+  qrImage.height = 600;
+  qrLink.append(qrImage);
+  qr.append(qrLink, element("figcaption", "", "Naskenujte pro registraci"));
+  layout.append(instructions, qr);
+  section.append(layout);
+
+  const warning = element("div", "auth-notice enrollment-warning");
+  warning.append(icon("zone"), element("p", "",
+    "Podmínky registrace upozorňují na zrušení stávajícího individuálního předplatného Copilotu při připojení; zvažte samostatný GitHub účet pro akci. Organizace je veřejná a po akci se smaže: nezveřejňujte citlivá data ani klíče a včas si uložte svou práci. U firemní licence postupujte podle pokynů k nastavení Usage billed to na registrační stránce."));
+  section.append(warning);
+  const preview = element("figure", "enrollment-preview");
+  const screenshot = element("img");
+  screenshot.src = "/github-enrollment.png";
+  screenshot.alt = "Registrační stránka Rakathon 2026 s tlačítky Sign in with GitHub a Create a GitHub account";
+  screenshot.width = 2690;
+  screenshot.height = 1660;
+  screenshot.loading = "lazy";
+  const screenshotLink = externalLink("Otevřít náhled registrace v plné velikosti", "/github-enrollment.png");
+  screenshotLink.className = "enrollment-preview-link";
+  screenshotLink.replaceChildren(screenshot);
+  preview.append(screenshotLink, element("figcaption", "", "Náhled registrační stránky; kliknutím otevřete plnou velikost. Aktuální stav akce a podmínky ověřte po otevření registračního odkazu."));
+  section.append(preview);
+  return section;
+}
+
 function render(catalog: Catalog, user: string): void {
   root.replaceChildren();
   root.className = "app-layout";
@@ -376,7 +437,10 @@ function render(catalog: Catalog, user: string): void {
   const keyLink = element("a", "nav-link", "Váš API klíč");
   keyLink.href = "#klic";
   keyLink.prepend(icon("lock"));
-  nav.append(keyLink, modelsLink, dataLink);
+  const githubLink = element("a", "nav-link", "GitHub");
+  githubLink.href = "#github";
+  githubLink.prepend(icon("code"));
+  nav.append(keyLink, modelsLink, dataLink, githubLink);
   sidebar.append(nav);
   const access = element("div", "sidebar-access");
   access.append(icon("lock"), element("p", "", "Jen pro Rakathon tenant"));
@@ -396,7 +460,17 @@ function render(catalog: Catalog, user: string): void {
     logout.href = "/.auth/logout?post_logout_redirect_uri=%2F";
     identity.append(logout);
   }
-  topbar.append(identity);
+  const topbarActions = element("div", "topbar-actions");
+  const azurePortal = externalLink("Azure Portal", "https://portal.azure.com/", true);
+  azurePortal.classList.add("azure-portal-button");
+  const azureLogo = element("img", "azure-portal-logo");
+  azureLogo.src = "/azure-logo.svg";
+  azureLogo.alt = "";
+  azureLogo.width = 24;
+  azureLogo.height = 24;
+  azurePortal.prepend(azureLogo);
+  topbarActions.append(azurePortal, identity);
+  topbar.append(topbarActions);
   const intro = element("header", "page-intro");
   intro.append(element("h1", "", "Modely a datové podklady"),
     element("p", "intro-description", "Endpointy pro váš kód. Sdílená data pro vaše nápady."));
@@ -427,7 +501,7 @@ function render(catalog: Catalog, user: string): void {
   cards.append(...catalog.foundry.models.map((model) => modelCard(model, catalog)));
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
-  main.append(keySection(), models, storageSection(catalog));
+  main.append(keySection(), models, storageSection(catalog), githubSection());
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Katalog nevolá Azure API ani negeneruje SAS odkazy."));

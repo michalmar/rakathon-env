@@ -238,6 +238,16 @@ h3 {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--cp-success) 13%, transparent);
 }
 .identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.topbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 14px; min-width: 0; }
+.button.azure-portal-button {
+  flex-shrink: 0;
+  border: 1px solid var(--cp-border);
+  color: var(--cp-text);
+  background: var(--cp-surface);
+  box-shadow: none;
+}
+.button.azure-portal-button:hover { color: var(--cp-text); background: var(--cp-blue-pale); }
+.azure-portal-logo { display: block; width: 24px; height: 24px; }
 .identity-name { overflow-wrap: anywhere; }
 .logout-link { color: var(--cp-text-muted); text-underline-offset: 4px; flex-shrink: 0; }
 .page-intro {
@@ -500,6 +510,26 @@ h3 {
 .primary-button:hover { color: #fff; background: var(--cp-blue-hover); }
 .button svg { width: 16px; height: 16px; flex-basis: 16px; }
 
+.enrollment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: start;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+.enrollment-instructions { min-width: 0; }
+.enrollment-steps { margin-inline: 0; max-width: 75ch; }
+.enrollment-account-note { margin-top: 20px; max-width: 75ch; color: var(--cp-text-muted); font-size: 0.82rem; }
+.enrollment-qr { margin: 0; }
+.enrollment-qr-link { display: block; border: 1px solid var(--cp-border); border-radius: 12px; overflow: hidden; }
+.enrollment-qr img { display: block; width: 100%; height: auto; }
+.enrollment-qr figcaption { margin-top: 10px; color: var(--cp-text-muted); font-size: 0.78rem; text-align: center; }
+.enrollment-warning { color: var(--cp-warning); }
+.enrollment-preview { margin: 24px 0 0; }
+.enrollment-preview-link { display: block; border-radius: 16px; }
+.enrollment-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--cp-border); border-radius: 16px; }
+.enrollment-preview figcaption { margin-top: 12px; color: var(--cp-text-muted); font-size: 0.78rem; }
+
 .file-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .file-count { color: var(--cp-text-muted); font-size: 0.78rem; font-weight: 650; }
 .search-label { max-width: 300px; width: 50%; }
@@ -642,6 +672,7 @@ h3 {
   .nav-link { flex: 1 0 auto; justify-content: center; }
   .main-content { width: min(100% - 28px, 1180px); padding-top: 14px; }
   .topbar { align-items: flex-start; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .topbar-actions { justify-content: flex-start; width: 100%; }
   .identity { justify-content: space-between; width: 100%; }
   .page-intro { min-height: 300px; margin-bottom: 44px; padding: 38px 28px; border-radius: 22px; }
   .page-intro::before { width: 280px; height: 280px; top: -180px; right: -110px; border-width: 50px; }
@@ -660,6 +691,8 @@ h3 {
   .file-name { gap: 7px; font-size: 0.78rem; }
   .file-size { font-size: 0.72rem; }
   .portal-guide { border-radius: 14px; }
+  .enrollment-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .enrollment-qr { width: min(240px, 100%); }
   .footer { flex-direction: column; margin-top: 46px; }
 }
 
@@ -671,7 +704,7 @@ h3 {
   .sidebar-access { border: 0; background: transparent; }
   .navigation { margin-inline: -4px; }
   .nav-link { padding-inline: 10px; font-size: 0.72rem; }
-  .nav-link:last-child { min-width: 240px; }
+  .nav-link[href="#data"] { min-width: 240px; }
   .page-intro h1 { font-size: 2.55rem; }
   .model-heading { align-items: center; }
   .model-title { align-items: flex-start; }
@@ -683,7 +716,7 @@ h3 {
   .connection-value { grid-template-columns: minmax(0, 1fr) auto auto; }
   .copy-value { font-size: 0.66rem; }
   .file-name > svg { display: none; }
-  .guide-steps { margin-inline: 18px; }
+  .portal-guide .guide-steps { margin-inline: 18px; }
   .guide-note { margin-inline: 18px; }
   .notification { right: 14px; bottom: 14px; max-width: calc(100vw - 28px); }
 }

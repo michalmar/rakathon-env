@@ -10,6 +10,15 @@ rozlišují Global Standard a EU Data Zone a zobrazují poskytovatele modelu. D�
 zobrazuje seznam souborů v `strakathondataq7146n/data` a návod ke stažení
 v Azure Portalu. Soubory nestahuje a SAS odkazy negeneruje.
 
+Tlačítko **Azure Portal** s logem Azure otevře `https://portal.azure.com/`
+v nové kartě. Sekce **GitHub pro hackathon** na stejné stránce obsahuje návod,
+tlačítko pro registraci, QR kód s úplným odkazem včetně event tokenu a náhled
+registrační stránky. Účastníci použijí osobní GitHub.com účet, nikoli Azure
+účet; EMU účty nejsou podporované. Podmínky registrace zahrnují dopad na
+Copilot licenci a veřejnost i následné smazání organizace.
+Odkaz je uložený v `src/main.ts`, obrázky v `public/github-enrollment*.png`.
+Při změně či expiraci event odkazu aktualizujte současně URL i QR kód.
+
 Údaje jsou **snapshot**, nikoli živý přehled. Na stránce je datum exportu.
 Exportér pouze čte Azure; nemění infrastrukturu, role, firewall ani autentizaci.
 `public/catalog.json` obsahuje při vývoji načtené modely a metadata souborů,
