@@ -570,6 +570,23 @@ h3 {
 .file-type { color: var(--cp-text-muted); font-size: 0.68rem; font-weight: 700; }
 .file-size { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .file-modified { color: var(--cp-text-muted); font-size: 0.72rem; white-space: nowrap; }
+.file-actions { width: 1%; white-space: nowrap; text-align: right !important; }
+.file-action-group { display: inline-flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.file-action {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 9px;
+  color: var(--cp-blue);
+  background: var(--cp-surface);
+  font-size: 0.7rem;
+  font-weight: 720;
+}
+.file-action:hover { color: #fff; border-color: var(--cp-blue); background: var(--cp-blue); }
+.file-action svg { width: 15px; height: 15px; flex-basis: 15px; }
 .portal-guide {
   margin-top: 18px;
   border: 1px solid var(--cp-border);
@@ -690,6 +707,8 @@ h3 {
   .file-table th, .file-table td { padding: 14px 12px; }
   .file-name { gap: 7px; font-size: 0.78rem; }
   .file-size { font-size: 0.72rem; }
+  .file-action span { display: none; }
+  .file-action { width: 38px; justify-content: center; padding-inline: 8px; }
   .portal-guide { border-radius: 14px; }
   .enrollment-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .enrollment-qr { width: min(240px, 100%); }
@@ -716,6 +735,7 @@ h3 {
   .connection-value { grid-template-columns: minmax(0, 1fr) auto auto; }
   .copy-value { font-size: 0.66rem; }
   .file-name > svg { display: none; }
+  .file-size { display: none; }
   .portal-guide .guide-steps { margin-inline: 18px; }
   .guide-note { margin-inline: 18px; }
   .notification { right: 14px; bottom: 14px; max-width: calc(100vw - 28px); }

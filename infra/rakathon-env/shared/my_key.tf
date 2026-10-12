@@ -5,6 +5,7 @@
 locals {
   my_key_storage_name = "stfn${var.project_name_compact}${random_string.storage_suffix.result}"
   my_key_app_name     = "func-${var.project_name_compact}-key-${random_string.storage_suffix.result}"
+  data_storage_scope  = "${azurerm_resource_group.shared.id}/providers/Microsoft.Storage/storageAccounts/${local.storage_account_name}"
 }
 
 # Function runtime na Consumption plánu potřebuje vlastní účet se sdíleným klíčem;
@@ -53,10 +54,12 @@ resource "azurerm_linux_function_app" "my_key" {
   }
 
   app_settings = {
-    APIM_ID       = azurerm_api_management.gateway.id
-    APIM_PRODUCT  = azurerm_api_management_product.hackathon.product_id
-    APIM_BASE_URL = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
-    TENANT_ID     = data.azurerm_client_config.current.tenant_id
+    APIM_ID              = azurerm_api_management.gateway.id
+    APIM_PRODUCT         = azurerm_api_management_product.hackathon.product_id
+    APIM_BASE_URL        = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
+    TENANT_ID            = data.azurerm_client_config.current.tenant_id
+    STORAGE_ACCOUNT_NAME = local.storage_account_name
+    STORAGE_CONTAINER    = "data"
   }
 
   tags = merge(var.tags, { service = "rakathon-my-key" })
@@ -90,6 +93,31 @@ resource "azurerm_role_definition" "my_key_reader" {
 resource "azurerm_role_assignment" "my_key_apim" {
   scope              = azurerm_api_management.gateway.id
   role_definition_id = azurerm_role_definition.my_key_reader.role_definition_resource_id
+  principal_id       = azurerm_linux_function_app.my_key.identity[0].principal_id
+}
+
+resource "azurerm_role_definition" "data_download_broker" {
+  name        = "Rakathon Data Download Broker"
+  scope       = local.data_storage_scope
+  description = "Read blobs and create short-lived user-delegation download URLs for authenticated teams."
+
+  permissions {
+    actions = [
+      "Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action",
+    ]
+    data_actions = [
+      "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+    ]
+    not_actions      = []
+    not_data_actions = []
+  }
+
+  assignable_scopes = [local.data_storage_scope]
+}
+
+resource "azurerm_role_assignment" "data_download_broker" {
+  scope              = local.data_storage_scope
+  role_definition_id = azurerm_role_definition.data_download_broker.role_definition_resource_id
   principal_id       = azurerm_linux_function_app.my_key.identity[0].principal_id
 }
 

@@ -185,10 +185,6 @@ export function parseCatalog(value: unknown): Catalog {
   };
 }
 
-export function portalUrl(id: string): string {
-  return `https://portal.azure.com/#@${environment.tenantId}/resource${id}/overview`;
-}
-
 export function formatSize(bytes: number): string {
   const units = ["B", "KiB", "MiB", "GiB", "TiB"];
   const index = bytes === 0 ? 0 : Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);

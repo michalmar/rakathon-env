@@ -1,14 +1,16 @@
 # Rakathon účastnický portál
 
-Statická SPA v TypeScriptu a Vite, bez MSAL a bez volání Azure z prohlížeče.
+Statická SPA v TypeScriptu a Vite, bez MSAL a bez přímého volání Azure API
+z prohlížeče.
 Zobrazuje deploymenty Foundry, kopírovatelný APIM gateway endpoint (OpenAI v1)
-a názvy deploymentů. Jediné dynamické volání je `GET /api/my-key` (Function
-v `infra/rakathon-env/functions/my-key`, připojená k SWA), která přihlášenému
-týmu (`teamNN@…`) vrátí jeho vlastní APIM klíč; statický katalog klíče
-neobsahuje. Záloha: handoff soubor `teamNN.md`. Karty
+a názvy deploymentů. Připojená Function v
+`infra/rakathon-env/functions/my-key` poskytuje přihlášenému týmu jeho vlastní
+APIM klíč přes `GET /api/my-key` a krátkodobý read-only odkaz ke stažení dat
+přes `GET /api/data-link`; statický katalog neobsahuje klíče ani SAS odkazy.
+Záloha API klíče: handoff soubor `teamNN.md`. Karty
 rozlišují Global Standard a EU Data Zone a zobrazují poskytovatele modelu. Dále
-zobrazuje seznam souborů v `strakathondataq7146n/data` a návod ke stažení
-v Azure Portalu. Soubory nestahuje a SAS odkazy negeneruje.
+zobrazuje seznam souborů v privátním containeru `data`. Každý soubor lze přímo
+stáhnout nebo zkopírovat jeho stabilní Blob URL pro použití v projektu.
 
 Tlačítko **Azure Portal** s logem Azure otevře `https://portal.azure.com/`
 v nové kartě. Sekce **GitHub pro hackathon** na stejné stránce obsahuje návod,
@@ -42,7 +44,7 @@ Pokud Azure CLI vyžaduje nové přihlášení:
 
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-rak"
-az login --tenant 7f0c84c5-bbea-48b2-bad1-6baf63d0c73c
+az login --tenant "<tenant-id>"
 ```
 
 Tenant, subscription a resource names jsou v `src/catalog.ts`. Exportér je
@@ -74,6 +76,19 @@ zablokuje (suspend subscription). Správce přístup týmu vypne/obnoví příka
 `infra/rakathon-env/scripts/set-team-access.sh teamNN on|off` (viz README
 infrastruktury). Portál přístup nemění, jen zobrazuje stav subscription.
 Backend `my-key` se nasazuje zvlášť (`infra/rakathon-env/scripts/deploy-my-key.sh`).
+
+## Datové soubory
+
+Tlačítko **Stáhnout** volá `/api/data-link` a obdrží read-only user-delegation
+URL s platností pět minut. Backend přijímá pouze SWA identity týmových účtů
+`teamNN@…`, ověří existenci blobu a odpověď neposílá do cache. Managed identity
+backendu má na storage pouze čtení blobů a oprávnění vygenerovat user delegation
+key; shared keys zůstávají vypnuté.
+
+Tlačítko **Kopírovat URL** vrací stabilní privátní adresu
+`https://<storage>.blob.core.windows.net/data/<blob>`. Tato adresa neobsahuje
+SAS ani jiný credential. Aplikace, notebook nebo SDK se k ní musí přihlásit přes
+Microsoft Entra ID účtem s rolí `Storage Blob Data Reader`.
 
 ## Azure Static Web Apps a Easy Auth
 
@@ -122,11 +137,10 @@ anonymní výjimku pro `/catalog*.json` ani `navigationFallback`, který by mohl
 obejít route authorization. Aplikace používá jen kotvy, takže fallback
 nepotřebuje. Odpovědi mají `Cache-Control: private, no-store`.
 
-Přihlášení do webu poskytuje přístup ke snapshotu, nikoli oprávnění k Azure
-resources. Účastníci pro práci s modely přes Entra a pro stažení dat potřebují
-své Azure role. Jednotlivé storage soubory se stahují v Portalu přes
-Containers → `data` → vybraný soubor → Download; je třeba `Reader`,
-`Storage Blob Data Reader` a povolená síť.
+Přihlášení do webu poskytuje přístup ke snapshotu a týmovým self-service
+endpointům, nikoli obecná oprávnění k Azure resources. Stabilní Blob URL
+použitá mimo portál vyžaduje `Storage Blob Data Reader` a povolenou síť.
+Azure Portal navíc vyžaduje management-plane roli `Reader`.
 
 Single-tenant registrace umožňuje i hosty, kteří mají účet v tomto tenantu.
 Přístup pouze pro vybrané účastníky lze navíc omezit přiřazováním uživatelů

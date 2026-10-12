@@ -1,8 +1,9 @@
 import "./styles.css";
 import { parseUser } from "./auth";
+import { blobUrl, loadDataLink } from "./data";
 import { curlExample, loadTeamKey, maskKey, pythonExample, type KeyResult, type TeamKey } from "./key";
 import {
-  environment, formatDate, formatSize, parseCatalog, portalUrl,
+  environment, formatDate, formatSize, parseCatalog,
   type Catalog, type DataFile, type ModelDeployment,
 } from "./catalog";
 
@@ -26,6 +27,8 @@ const icons = {
   zone: '<path d="M12 3 4.5 6v5.2c0 4.6 3.2 8.1 7.5 9.8 4.3-1.7 7.5-5.2 7.5-9.8V6L12 3Z"/><path d="M8.5 12h7M12 8.5v7"/>',
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
   code: '<path d="m8 5-7 7 7 7m8-14 7 7-7 7m-3-16-2 18"/>',
+  download: '<path d="M12 3v12m-5-5 5 5 5-5"/><path d="M5 21h14"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/>',
 } as const;
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -273,6 +276,17 @@ function keySection(): HTMLElement {
   return section;
 }
 
+function fileAction(label: string, iconName: keyof typeof icons, handler: (button: HTMLButtonElement) => Promise<void>): HTMLButtonElement {
+  const button = element("button", "file-action");
+  button.type = "button";
+  button.append(icon(iconName), element("span", "", label));
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    handler(button).finally(() => { button.disabled = false; });
+  });
+  return button;
+}
+
 function fileRow(file: DataFile): HTMLTableRowElement {
   const row = element("tr");
   const nameCell = element("td");
@@ -287,7 +301,38 @@ function fileRow(file: DataFile): HTMLTableRowElement {
   const sizeCell = element("td", "file-size", formatSize(file.size));
   const modifiedCell = element("td", "file-modified", formatDate(file.lastModified));
   modifiedCell.title = file.lastModified;
-  row.append(nameCell, kindCell, sizeCell, modifiedCell);
+  const actionsCell = element("td", "file-actions");
+  const actions = element("div", "file-action-group");
+  actions.append(
+    fileAction("Stáhnout", "download", async () => {
+      const result = await loadDataLink(file.name);
+      if (result.status === "ok") {
+        const link = element("a");
+        link.href = result.link.downloadUrl;
+        link.rel = "noopener noreferrer";
+        link.download = file.name.split("/").at(-1) || "download";
+        document.body.append(link);
+        link.click();
+        link.remove();
+        notify(`Stahování souboru ${file.name} bylo zahájeno.`);
+      } else if (result.status === "not-found") {
+        notify("Soubor už ve storage není. Správce musí obnovit katalog.", true);
+      } else if (result.status === "unauthenticated") {
+        notify("Přihlášení vypršelo nebo tento účet není týmový. Přihlaste se znovu.", true);
+      } else {
+        notify("Odkaz ke stažení se nepodařilo vytvořit. Zkuste to znovu.", true);
+      }
+    }),
+    fileAction("Kopírovat URL", "link", async () => {
+      try {
+        await copy(blobUrl(file.name), "URL souboru");
+      } catch {
+        notify("Kopírování URL se nezdařilo. Zkuste to znovu.", true);
+      }
+    }),
+  );
+  actionsCell.append(actions);
+  row.append(nameCell, kindCell, sizeCell, modifiedCell, actionsCell);
   return row;
 }
 
@@ -300,7 +345,7 @@ function storageSection(catalog: Catalog): HTMLElement {
   const heading = element("h2", "", "Datové podklady pouze pro výzvy VZP");
   heading.id = "data-heading";
   title.append(heading, element("p", "section-description", `${catalog.storage.name} / ${catalog.storage.container}`));
-  header.append(title, externalLink("Otevřít storage v portálu", portalUrl(catalog.storage.resourceId), true));
+  header.append(title);
   section.append(header);
 
   const toolbar = element("div", "file-toolbar");
@@ -318,7 +363,7 @@ function storageSection(catalog: Catalog): HTMLElement {
   const tableWrap = element("div", "file-table-wrap");
   const table = element("table", "file-table");
   table.setAttribute("aria-label", "Soubory v containeru data");
-  table.innerHTML = '<thead><tr><th scope="col">Soubor</th><th scope="col" class="file-kind">Typ</th><th scope="col" class="file-size">Velikost</th><th scope="col" class="file-modified">Změněno</th></tr></thead>';
+  table.innerHTML = '<thead><tr><th scope="col">Soubor</th><th scope="col" class="file-kind">Typ</th><th scope="col" class="file-size">Velikost</th><th scope="col" class="file-modified">Změněno</th><th scope="col" class="file-actions">Akce</th></tr></thead>';
   const body = element("tbody");
   table.append(body);
   tableWrap.append(table);
@@ -331,7 +376,7 @@ function storageSection(catalog: Catalog): HTMLElement {
       const cell = element("td", "empty-state", query
         ? "Žádný soubor neodpovídá hledání. Změňte nebo vymažte hledaný název."
         : "Container data byl v době exportu prázdný.");
-      cell.colSpan = 4;
+      cell.colSpan = 5;
       const row = element("tr");
       row.append(cell);
       body.append(row);
@@ -345,18 +390,17 @@ function storageSection(catalog: Catalog): HTMLElement {
 
   const guide = element("details", "portal-guide");
   guide.open = true;
-  guide.append(element("summary", "", "Jak soubory stáhnout v Azure Portalu"));
+  guide.append(element("summary", "", "Jak data použít v projektu"));
   const steps = element("ol", "guide-steps");
   const step1 = element("li");
-  step1.append(document.createTextNode("Otevřete "), externalLink("Azure Portal", portalUrl(catalog.storage.resourceId)),
-    document.createTextNode(" a přihlaste se účtem z Rakathon tenantu."));
+  step1.append(document.createTextNode("Tlačítko Stáhnout vytvoří krátkodobý odkaz a stáhne soubor přímo z portálu."));
   const step2 = element("li");
-  step2.append(document.createTextNode("Ve storage "), element("code", "", catalog.storage.name),
-    document.createTextNode(" zvolte Containers (Kontejnery) a otevřete "), element("code", "", catalog.storage.container),
-    document.createTextNode("."));
-  steps.append(step1, step2, element("li", "", "Vyberte soubor a použijte Download (Stáhnout)."));
+  step2.append(document.createTextNode("Tlačítko Kopírovat URL vloží stabilní adresu blobu pro SDK, notebook nebo aplikaci."));
+  const step3 = element("li");
+  step3.append(document.createTextNode("Při použití URL v projektu se přihlaste přes Microsoft Entra ID; storage zůstává privátní a anonymní URL nefunguje."));
+  steps.append(step1, step2, step3);
   guide.append(steps, element("p", "guide-note",
-    "Pro přístup k datům použijte Microsoft Entra ID. Potřebujete role Reader a Storage Blob Data Reader; při chybě přístupu ověřte také povolenou síť storage."));
+    "Týmový účet potřebuje roli Storage Blob Data Reader. Odkaz ke stažení z portálu je pouze pro čtení a vyprší za pět minut."));
   section.append(guide);
   return section;
 }
@@ -504,7 +548,7 @@ function render(catalog: Catalog, user: string): void {
   main.append(keySection(), models, storageSection(catalog), githubSection());
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
-    element("span", "", "Katalog nevolá Azure API ani negeneruje SAS odkazy."));
+    element("span", "", "Privátní data · krátkodobé odkazy pouze pro přihlášené týmy"));
   main.append(footer);
   root.append(sidebar, main);
   root.setAttribute("aria-busy", "false");

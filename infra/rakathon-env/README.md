@@ -117,7 +117,7 @@ vracejí outputs `portal_url`, `portal_name`, `portal_auth_client_id` a
 `portal_auth_secret_expires_at`. Publikování aplikace popisuje
 [`web/README.md`](../../web/README.md).
 
-### Self-service API klíč (Function `my-key`)
+### Self-service API klíč a data (Function backend)
 
 Přihlášený tým vidí svůj APIM klíč v portálu (sekce „Váš API klíč“). Zajišťuje
 to Function app `func-rakathon-key-<suffix>` (Linux Consumption, Node 22,
@@ -131,6 +131,11 @@ to Function app `func-rakathon-key-<suffix>` (Linux Consumption, Node 22,
   `{team, key, state, baseUrl}` má `Cache-Control: no-store`, klíč se nelogují.
 - Managed identity má jen custom roli „Rakathon APIM Team Key Reader“ na APIM
   (`subscriptions/read`, `subscriptions/listSecrets/action`), žádnou širší.
+- Endpoint `GET /api/data-link?name=<blob>` pro přihlášený tým ověří existenci
+  blobu a vrátí stabilní privátní Blob URL a pětiminutový read-only
+  user-delegation odkaz ke stažení. Managed identity má na datovém storage jen
+  vlastní roli „Rakathon Data Download Broker“ s oprávněním číst bloby a
+  generovat user delegation key.
 - Přímé volání `https://func-…azurewebsites.net/api/my-key` mimo SWA vrací `401`
   (Easy Auth nastavený registrací backendu), takže cizí `x-ms-client-principal`
   nelze podvrhnout. Portál (`/*`) zůstává jen pro přihlášené.
@@ -367,7 +372,8 @@ takže se spotřeba měří vždy.
    portál (sekce „Váš API klíč“ – zobrazit/kopírovat, stav aktivní / zablokováno –
    rozpočet); `teamNN.md` je záloha. Účty mimo `teamNN` (organizátoři, `ops-*`)
    klíč v portálu nedostanou.
-6. Po `terraform apply` nezapomeňte nasadit i funkci: `./scripts/deploy-my-key.sh`.
+6. Po `terraform apply` nezapomeňte nasadit i backend portálu:
+   `./scripts/deploy-my-key.sh`.
 
 ### Kde sledovat spotřebu
 

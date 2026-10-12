@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { teamFromUpn, teamFromPrincipalHeader, myKey } = require("../src/lib");
+const { dataLink, teamFromUpn, teamFromPrincipalHeader, validatedBlobName, myKey } = require("../src/lib");
 
 const TENANT = "7f0c84c5-bbea-48b2-bad1-6baf63d0c73c";
 
@@ -41,6 +41,13 @@ test("principal validation", () => {
   assert.equal(status(() => teamFromPrincipalHeader(header({ userDetails: "organizer@x.com" }), TENANT)), 404);
 });
 
+test("blob name validation", () => {
+  assert.equal(validatedBlobName("folder/data set.csv"), "folder/data set.csv");
+  for (const bad of ["", "/root.csv", "bad\u0000name.csv", "x".repeat(1025)]) {
+    assert.equal(status(() => validatedBlobName(bad)), 400, JSON.stringify(bad));
+  }
+});
+
 const env = {
   IDENTITY_ENDPOINT: "http://msi", IDENTITY_HEADER: "h",
   APIM_ID: "/subscriptions/s/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim",
@@ -74,4 +81,18 @@ test("suspended passes through; foreign product and missing subscription are no-
   const other = fakeFetch({ properties: { scope: `${env.APIM_ID}/products/other`, state: "active" } });
   await assert.rejects(myKey(request(), env, other.impl), { status: 404 });
   await assert.rejects(myKey(request(), env, fakeFetch(null).impl), { status: 404 });
+});
+
+test("data link is restricted to authenticated team principals", async () => {
+  const createLink = async (name) => ({ blobUrl: `https://storage/${name}` });
+  assert.deepEqual(
+    await dataLink(request(), "folder/data.csv", env, createLink),
+    { blobUrl: "https://storage/folder/data.csv" },
+  );
+  await assert.rejects(dataLink(new Map(), "data.csv", env, createLink), { status: 401 });
+  await assert.rejects(
+    dataLink(new Map([["x-ms-client-principal", header({ userDetails: "organizer@x.com" })]]), "data.csv", env, createLink),
+    { status: 404 },
+  );
+  await assert.rejects(dataLink(request(), "/data.csv", env, createLink), { status: 400 });
 });

@@ -21,13 +21,32 @@ async function prepare(page: Page, catalog = catalogFixture(), user: unknown = u
     keyRequests += 1;
     return route.fulfill({ json: {} });
   });
+  let dataLinkRequests = 0;
+  await page.route("**/api/data-link?*", (route) => {
+    dataLinkRequests += 1;
+    const name = new URL(route.request().url()).searchParams.get("name") ?? "";
+    const encodedName = name.split("/").map(encodeURIComponent).join("/");
+    const blobUrl = `https://${environment.storageAccount}.blob.core.windows.net/${environment.container}/${encodedName}`;
+    return route.fulfill({
+      json: {
+        blobUrl,
+        downloadUrl: `${blobUrl}?sv=test&sig=fake`,
+        expiresAt: "2026-10-12T12:00:00.000Z",
+      },
+    });
+  });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: async (value: string) => { Reflect.set(window, "testClipboard", value); } },
     });
   });
-  return { keyRequests: () => keyRequests, myKeyRequests: () => myKeyRequests, catalogRequests: () => catalogRequests };
+  return {
+    keyRequests: () => keyRequests,
+    myKeyRequests: () => myKeyRequests,
+    catalogRequests: () => catalogRequests,
+    dataLinkRequests: () => dataLinkRequests,
+  };
 }
 
 async function openFirstModel(page: Page) {
@@ -37,7 +56,7 @@ async function openFirstModel(page: Page) {
   await expect(card).toHaveAttribute("open", "");
 }
 
-test("zobrazí modely, APIM endpoint, odkaz na klíč týmu a návod místo downloadů", async ({ page }) => {
+test("zobrazí modely, APIM endpoint, klíč týmu a akce nad datovými soubory", async ({ page }) => {
   const requests = await prepare(page);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -50,9 +69,10 @@ test("zobrazí modely, APIM endpoint, odkaz na klíč týmu a návod místo down
   await expect(page.getByText("Každý tým má vlastní klíč", { exact: false })).toBeVisible();
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
   await expect(page.getByRole("heading", { name: "Datové podklady pouze pro výzvy VZP" })).toBeVisible();
-  await expect(page.getByText("Jak soubory stáhnout v Azure Portalu")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Otevřít storage v portálu", exact: false })).toHaveAttribute("target", "_blank");
-  await expect(page.getByRole("button", { name: /Stáhnout|SAS|Kopírovat klíč/ })).toHaveCount(0);
+  await expect(page.getByText("Jak data použít v projektu")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Otevřít storage v portálu", exact: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Stáhnout" })).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "Kopírovat URL" })).toHaveCount(3);
   expect(requests.keyRequests()).toBe(0);
   await expect(page.getByRole("button", { name: "Kopírovat endpoint Testovací model 1" })).toBeHidden();
   await openFirstModel(page);
@@ -61,6 +81,29 @@ test("zobrazí modely, APIM endpoint, odkaz na klíč týmu a návod místo down
   await expect(page.getByRole("status")).toHaveText("APIM gateway (OpenAI v1) zkopírován do schránky.");
   await page.getByRole("button", { name: "Kopírovat deployment Testovací model 1" }).click();
   expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe("test-model-one");
+});
+
+test("zkopíruje stabilní blob URL a stáhne soubor přes krátkodobý odkaz", async ({ page }) => {
+  const requests = await prepare(page);
+  const catalog = catalogFixture();
+  const file = catalog.storage.files[0]!;
+  const blobUrl = `https://${environment.storageAccount}.blob.core.windows.net/${environment.container}/${encodeURIComponent(file.name)}`;
+  await page.route(`${blobUrl}?*`, (route) => route.fulfill({
+    status: 200,
+    headers: {
+      "Content-Type": file.contentType,
+      "Content-Disposition": `attachment; filename="${file.name}"`,
+    },
+    body: "sample",
+  }));
+  await page.goto("/");
+  const row = page.getByRole("row").filter({ hasText: file.name });
+  await row.getByRole("button", { name: "Kopírovat URL" }).click();
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(blobUrl);
+  const downloadPromise = page.waitForEvent("download");
+  await row.getByRole("button", { name: "Stáhnout" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe(file.name);
+  expect(requests.dataLinkRequests()).toBe(1);
 });
 
 test("filtruje soubory a prázdný výsledek vysvětlí", async ({ page }) => {

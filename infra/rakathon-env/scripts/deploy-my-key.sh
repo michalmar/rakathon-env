@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nasadí kód Function my-key (GET /api/my-key) zip deploy balíčkem.
+# Nasadí backend portálu (GET /api/my-key a GET /api/data-link) zip deploy balíčkem.
 # Vyžaduje: az (přihlášený do správného tenantu), terraform, npm, zip.
 
 set -euo pipefail
@@ -25,4 +25,4 @@ az functionapp deployment source config-zip \
   --only-show-errors \
   --output none
 
-echo "Function ${app_name} nasazena. Ověření: curl https://${app_name}.azurewebsites.net/api/my-key (bez SWA musí vrátit 401/403)."
+echo "Function ${app_name} nasazena. Endpointy /api/my-key a /api/data-link vyžadují hlavičku identity ze SWA."

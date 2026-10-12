@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseUser } from "../src/auth";
-import { environment, formatSize, parseCatalog, portalUrl } from "../src/catalog";
+import { environment, formatSize, parseCatalog } from "../src/catalog";
 import { curlExample, maskKey, parseTeamKey, loadTeamKey } from "../src/key";
 import { catalogFixture, userFixture } from "./fixtures";
 
@@ -55,12 +55,6 @@ describe("statický katalog", () => {
     expect(() => parseCatalog(catalog)).toThrow("neznámé pole");
   });
 
-  it("vede Portal do správného tenantu a resource", () => {
-    const catalog = catalogFixture();
-    expect(portalUrl(catalog.storage.resourceId)).toBe(
-      `https://portal.azure.com/#@${environment.tenantId}/resource${catalog.storage.resourceId}/overview`,
-    );
-  });
 });
 
 describe("Easy Auth", () => {

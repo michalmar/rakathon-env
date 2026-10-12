@@ -49,6 +49,17 @@ function teamFromPrincipalHeader(header, tenantId) {
   return team;
 }
 
+function validatedBlobName(value) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 1024 ||
+    value.startsWith("/") ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  ) throw new HttpError(400, "invalid-blob");
+  return value;
+}
+
 async function managedIdentityToken(env, fetchImpl) {
   const response = await fetchImpl(
     `${env.IDENTITY_ENDPOINT}?resource=${encodeURIComponent("https://management.azure.com/")}&api-version=2019-08-01`,
@@ -82,4 +93,12 @@ async function myKey(headers, env, fetchImpl = fetch) {
   return fetchTeamKey(team, env, fetchImpl);
 }
 
-module.exports = { HttpError, parsePrincipal, teamFromUpn, teamFromPrincipalHeader, fetchTeamKey, myKey };
+async function dataLink(headers, blobName, env, createLink) {
+  teamFromPrincipalHeader(headers.get("x-ms-client-principal"), env.TENANT_ID);
+  return createLink(validatedBlobName(blobName), env);
+}
+
+module.exports = {
+  HttpError, parsePrincipal, teamFromUpn, teamFromPrincipalHeader, validatedBlobName,
+  fetchTeamKey, myKey, dataLink,
+};
