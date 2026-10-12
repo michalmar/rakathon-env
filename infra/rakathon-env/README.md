@@ -168,11 +168,23 @@ dalším spuštění pokračuje za nejvyšším nalezeným číslem.
 ```bash
 export AZURE_TENANT_ID="<tenant-id>"
 export SHARED_RESOURCE_GROUP="rg-rakathon-shared"
-export TAP_START_DATETIME="2026-10-09T08:00:00Z"
-export TAP_END_DATETIME="2026-10-09T18:00:00Z"
+
+# Začátek musí být při vytvoření TAP stále v budoucnosti. Rezerva 15 minut
+# pokrývá vytvoření uživatelů, resource groups, RBAC a APIM subscriptions.
+tap_start_epoch=$(($(date -u +%s) + 15 * 60))
+tap_end_epoch=$((tap_start_epoch + 3 * 24 * 60 * 60))
+format_utc_epoch() {
+  if date --version >/dev/null 2>&1; then
+    date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ
+  else
+    date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ
+  fi
+}
+export TAP_START_DATETIME="$(format_utc_epoch "${tap_start_epoch}")"
+export TAP_END_DATETIME="$(format_utc_epoch "${tap_end_epoch}")"
 
 # Volitelné nastavení:
-export TAP_IS_USABLE_ONCE=true
+export TAP_IS_USABLE_ONCE=false
 export TEAM_USER_OUTPUT_DIR="$PWD/team-user-access"
 
 ./scripts/create-team-users.sh      # vytvoří 1 uživatele
@@ -225,8 +237,16 @@ z `AZURE_TENANT_ID` a název sdílené resource group z
 `SHARED_RESOURCE_GROUP`. Začátek a konec platnosti TAP jsou povinné UTC hodnoty
 `TAP_START_DATETIME` a `TAP_END_DATETIME` ve formátu
 `YYYY-MM-DDTHH:MM:SSZ`. Rozdíl musí být celé minuty a musí být v rozsahu 10 až
-43200 minut. Volitelně lze nastavit `TAP_IS_USABLE_ONCE` a
-`TEAM_USER_OUTPUT_DIR`.
+43200 minut a současně v rozsahu povoleném TAP policy tenantu. Čas začátku musí
+být při Graph požadavku stále v budoucnosti; pro okamžitě spouštěný provisioning
+použijte alespoň 15 minut rezervy. `TAP_IS_USABLE_ONCE=false` dovolí používat
+stejný TAP opakovaně až do `TAP_END_DATETIME`; hodnota `true` jej zneplatní po
+prvním úspěšném přihlášení. Volitelně lze nastavit `TAP_IS_USABLE_ONCE` a
+`TEAM_USER_OUTPUT_DIR`. Bash skript vytváří TAP pomocí vyhrazené aplikace
+`Rakathon Team Provisioner`. Hodnoty pro přihlášení aplikace se konfigurují
+lokálně a nesmí se ukládat do repozitáře ani dokumentace. Přihlášení aplikace
+proběhne před vytvořením prvního uživatele, aby chyba přihlašovacích údajů
+nezanechala částečně vytvořený tým.
 
 Název APIM instance skript zjistí v `SHARED_RESOURCE_GROUP` (nebo ji lze zadat
 přes `APIM_NAME`); base URL lze přepsat proměnnou `APIM_URL`, rozpočet uvedený
@@ -250,6 +270,9 @@ oprávnění pro zápis TAP. Temporary Access Pass musí být v tenantovi povole
 authentication methods policy. Skript nepřiděluje žádnou roli na subscription
 scope; případná širší oprávnění zděděná z jiných role assignments ale
 neodebírá.
+
+Pro neinteraktivní vytváření TAP pomocí vyhrazené aplikace viz
+[`docs/tap-provisioner-admin-consent.md`](docs/tap-provisioner-admin-consent.md).
 
 ### Bulk odstranění týmových uživatelů
 
@@ -331,8 +354,7 @@ takže se spotřeba měří vždy.
 
 ### Checklist před akcí
 
-1. `export AZURE_CONFIG_DIR="$HOME/.azure-rak"` a přihlášení do tenantu
-   `7f0c84c5-bbea-48b2-bad1-6baf63d0c73c`.
+1. `export AZURE_CONFIG_DIR="$HOME/.azure-rak"` a přihlášení do cílového tenantu.
 2. V `shared/terraform.tfvars` nastavte `budget_window_start` na začátek akce
    (UTC, např. `2026-10-14T07:00:00Z`) – spotřeba před ním se nepočítá. Případně
    upravte `overall_budget_usd`/`team_budget_usd`. Poté `terraform apply`.

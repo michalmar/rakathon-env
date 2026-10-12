@@ -13,6 +13,9 @@ STORAGE_BLOB_DATA_READER_ROLE_ID="2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
 APIM_API_VERSION="2024-05-01"
 APIM_PRODUCT="hackathon"
 TEAM_BUDGET_USD="${TEAM_BUDGET_USD:-1000}"
+TAP_APP_CLIENT_ID="${TAP_APP_CLIENT_ID:-c9288328-790e-4257-be49-3bc560e0fa35}"
+TAP_APP_CERTIFICATE="${TAP_APP_CERTIFICATE:-${HOME}/.azure-rak/team-provisioner/credential.pem}"
+TAP_APP_AZURE_CONFIG_DIR="${TAP_APP_AZURE_CONFIG_DIR:-${HOME}/.azure-rak-team-provisioner}"
 
 requested_count="${1:-1}"
 tap_is_usable_once="${TAP_IS_USABLE_ONCE:-true}"
@@ -75,6 +78,24 @@ fi
 
 if ! az account show >/dev/null 2>&1; then
   echo "Nejprve se přihlaste příkazem: az login" >&2
+  exit 1
+fi
+
+if [[ ! -r "${TAP_APP_CERTIFICATE}" ]]; then
+  echo "Certifikát aplikace pro vytváření TAP není čitelný: ${TAP_APP_CERTIFICATE}" >&2
+  exit 1
+fi
+
+mkdir -p "${TAP_APP_AZURE_CONFIG_DIR}"
+if ! AZURE_CONFIG_DIR="${TAP_APP_AZURE_CONFIG_DIR}" az login \
+  --service-principal \
+  --username "${TAP_APP_CLIENT_ID}" \
+  --certificate "${TAP_APP_CERTIFICATE}" \
+  --tenant "${AZURE_TENANT_ID}" \
+  --allow-no-subscriptions \
+  --output none \
+  --only-show-errors; then
+  echo "Přihlášení aplikace pro vytváření TAP selhalo." >&2
   exit 1
 fi
 
@@ -317,7 +338,7 @@ while ((created_count < requested_count)); do
 
   team_apim_key="$(ensure_apim_subscription "${team_name}")"
 
-  temporary_access_pass="$(az rest \
+  temporary_access_pass="$(AZURE_CONFIG_DIR="${TAP_APP_AZURE_CONFIG_DIR}" az rest \
     --method post \
     --url "https://graph.microsoft.com/v1.0/users/${user_object_id}/authentication/temporaryAccessPassMethods" \
     --headers 'Content-Type=application/json' \
