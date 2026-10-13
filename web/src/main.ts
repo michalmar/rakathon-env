@@ -1,5 +1,6 @@
 import "./styles.css";
 import { parseUser } from "./auth";
+import { canViewSpend, spendSection } from "./spend";
 import { generateIrisPassword, irisDeployment, irisTeam, validContainerName } from "./iris";
 import { blobUrl, loadDataLink } from "./data";
 import { curlExample, loadTeamKey, maskKey, pythonExample, pythonResponsesExample, type KeyResult, type TeamKey } from "./key";
@@ -802,6 +803,12 @@ function render(catalog: Catalog, user: string): void {
   examplesLink.href = "#examples";
   examplesLink.prepend(icon("code"));
   nav.append(keyLink, modelsLink, dataLink, irisLink, githubLink, examplesLink);
+  if (!import.meta.env.DEV && canViewSpend(user)) {
+    const spendLink = element("a", "nav-link", "Náklady");
+    spendLink.href = "#spend";
+    spendLink.prepend(icon("models"));
+    nav.append(spendLink);
+  }
   sidebar.append(nav);
   const access = element("div", "sidebar-access");
   access.append(icon("lock"), element("p", "", "Jen pro Rakathon tenant"));
@@ -863,6 +870,7 @@ function render(catalog: Catalog, user: string): void {
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
   main.append(keySection(), models, storageSection(catalog), irisSection(user), githubSection(), examplesSection(catalog));
+  if (!import.meta.env.DEV && canViewSpend(user)) main.append(spendSection());
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Privátní data · krátkodobé odkazy pouze pro přihlášené týmy"));

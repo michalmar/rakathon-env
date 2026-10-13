@@ -54,12 +54,13 @@ resource "azurerm_linux_function_app" "my_key" {
   }
 
   app_settings = {
-    APIM_ID              = azurerm_api_management.gateway.id
-    APIM_PRODUCT         = azurerm_api_management_product.hackathon.product_id
-    APIM_BASE_URL        = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
-    TENANT_ID            = data.azurerm_client_config.current.tenant_id
-    STORAGE_ACCOUNT_NAME = local.storage_account_name
-    STORAGE_CONTAINER    = "data"
+    APIM_ID                    = azurerm_api_management.gateway.id
+    APIM_PRODUCT               = azurerm_api_management_product.hackathon.product_id
+    APIM_BASE_URL              = "${azurerm_api_management.gateway.gateway_url}/openai/v1"
+    TENANT_ID                  = data.azurerm_client_config.current.tenant_id
+    STORAGE_ACCOUNT_NAME       = local.storage_account_name
+    STORAGE_CONTAINER          = "data"
+    LOG_ANALYTICS_WORKSPACE_ID = azurerm_log_analytics_workspace.gateway.workspace_id
   }
 
   tags = merge(var.tags, { service = "rakathon-my-key" })
@@ -94,6 +95,12 @@ resource "azurerm_role_assignment" "my_key_apim" {
   scope              = azurerm_api_management.gateway.id
   role_definition_id = azurerm_role_definition.my_key_reader.role_definition_resource_id
   principal_id       = azurerm_linux_function_app.my_key.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "portal_spend_law" {
+  scope                = azurerm_log_analytics_workspace.gateway.id
+  role_definition_name = "Log Analytics Reader"
+  principal_id         = azurerm_linux_function_app.my_key.identity[0].principal_id
 }
 
 resource "azurerm_role_definition" "data_download_broker" {

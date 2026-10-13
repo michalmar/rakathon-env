@@ -57,7 +57,7 @@ jsou pouze pro necitlivá testovací data; nejsou chráněné TLS. Nasazení pou
 2 vCPU / 2 GiB, restart policy Never a nemá persistentní datový disk.
 Návod upozorňuje na ztrátu dat a průběžné účtování nezávislé na blokaci APIM.
 
-Údaje jsou **snapshot**, nikoli živý přehled. Na stránce je datum exportu.
+Údaje katalogu jsou **snapshot**, nikoli živý přehled. Na stránce je datum exportu.
 Exportér pouze čte Azure; nemění infrastrukturu, role, firewall ani autentizaci.
 `public/catalog.json` obsahuje při vývoji načtené modely a metadata souborů,
 bez klíčů (APIM gateway endpoint místo Foundry endpointu). Je součástí zdrojů, takže aplikaci lze sestavit i bez Azure CLI
@@ -112,6 +112,51 @@ zablokuje (suspend subscription). Správce přístup týmu vypne/obnoví příka
 `infra/rakathon-env/scripts/set-team-access.sh teamNN on|off` (viz README
 infrastruktury). Portál přístup nemění, jen zobrazuje stav subscription.
 Backend `my-key` se nasazuje zvlášť (`infra/rakathon-env/scripts/deploy-my-key.sh`).
+
+## Odhad nákladů pro účty mimo tým
+
+Sekce **Náklady** a její menu jsou dostupné pouze přihlášeným Entra účtům,
+jejichž UPN nemá lokální část přesně `teamNN` (bez ohledu na velikost písmen).
+Týmové účty sekci nevidí a backend odmítá jejich `GET /api/spend` odpovědí
+403 před dotazováním Azure. Přístup mají všechny ostatní účty povolené
+stávajícím single-tenant přihlášením; nejde o samostatnou roli organizátora.
+Lokální vývojový náhled bez ověřené identity sekci nezobrazuje.
+
+API ve stávající připojené Function používá managed identity a pevné KQL
+dotazy nad `HackathonRequests()`, `HackathonCostStatus()` a
+`HackathonCostConfig()`. Ceník a rozpočty zůstávají v Terraform/KQL, nikoli
+ve frontendu. Přehled doplňuje stránkovaný seznam APIM subscriptions:
+zahrnuje týmy bez spotřeby a zobrazuje skutečný stav APIM odděleně od
+překročení rozpočtu. Spotřeba mimo `teamNN` je vyčíslená samostatně, ale
+zůstává součástí celkového rozpočtu stejně jako v cost jobu.
+
+Jde o odhad ceny modelů z úspěšných požadavků gateway, ne o fakturované
+náklady Azure. Nezahrnuje hosting APIM, další infrastrukturu ani volání
+mimo gateway; neodečítá cache slevy a obrázky oceňuje odhadem po požadavcích.
+Rozpočty a tabulky pokrývají celé rozpočtové okno, hodinový graf pouze
+posledních 24 hodin. Graf má také rozbalitelnou číselnou tabulku.
+Peněžní částky používají české číselné formátování, dvě desetinná místa
+a označení `USD`; výpočet a data API si zachovávají plnou přesnost.
+
+Data se načítají při zobrazení sekce a obnovují každé dvě minuty, pouze
+při viditelné stránce a sekci. Tlačítko umožňuje ruční obnovu. Backend
+sdílí úspěšný přehled v paměti instance nejvýše minutu, vždy až po ověření
+identity; odpovědi mají `private, no-store`. Chyba ani částečný výsledek
+Log Analytics se nevydává za nulovou spotřebu. Při chybě obnovy je
+ponechaný přehled výslovně označen jako neaktuální.
+
+Přehled uvádí čas dotazu, poslední zaznamenané spotřeby a snapshotu jobu.
+Starý čas poslední spotřeby nemusí znamenat výpadek: prostředí může být
+nečinné. Chybějící nebo více než 20 minut starý snapshot jobu vyvolá
+varování. Logy mají zpoždění několika minut.
+
+Pro aktivaci nejprve aplikujte Terraform v `infra/rakathon-env/shared`
+(nová KQL funkce, nastavení workspace a workspace-scoped Log Analytics
+Reader pro backend), potom nasaďte Function skriptem
+`infra/rakathon-env/scripts/deploy-my-key.sh` a publikujte web. Není
+potřeba nová služba, přímé Azure přihlášení prohlížeče ani další secret.
+Skript po zip deploy synchronizuje Function triggery, aby se nové API
+routes zaregistrovaly i při nasazení balíčku přes URL.
 
 ## Datové soubory
 

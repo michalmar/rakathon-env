@@ -99,6 +99,23 @@ resource "azurerm_log_analytics_saved_search" "status" {
   depends_on = [azurerm_log_analytics_saved_search.usage]
 }
 
+resource "azurerm_log_analytics_saved_search" "config" {
+  name                       = "HackathonCostConfig"
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.gateway.id
+  category                   = "Hackathon"
+  display_name               = "HackathonCostConfig"
+  function_alias             = "HackathonCostConfig"
+  query                      = <<-KQL
+    print DefaultTeamBudgetUsd = real(${var.team_budget_usd}),
+      OverallBudgetUsd = real(${var.overall_budget_usd}),
+      OverallRevokeAtUsd = real(${var.overall_budget_usd - var.overall_revoke_safety_margin_usd}),
+      WarnPct = real(${local.warn_pct}),
+      EnforcementEnabled = bool(${var.apim_enforce_budget}),
+      WindowStart = datetime(${var.budget_window_start}),
+      TeamBudgetOverrides = dynamic(${jsonencode(var.team_budget_overrides)})
+  KQL
+}
+
 # --- Výstupní sink: vlastní tabulka přes Logs Ingestion API ---
 
 resource "azapi_resource" "cost_table" {

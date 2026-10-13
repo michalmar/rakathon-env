@@ -10,7 +10,7 @@ locals {
     overall = {
       title = "Celková spotřeba vs. rozpočet"
       viz   = "tiles"
-      query = "HackathonCostStatus() | where Scope == 'overall' | project ['Spotřeba USD'] = CostUsd, ['Rozpočet USD'] = LimitUsd, ['% rozpočtu'] = Pct, ['Revoke všech týmů'] = Revoke"
+      query = "HackathonCostStatus() | where Scope == 'overall' | project ['Odhad USD'] = CostUsd, ['Rozpočet USD'] = LimitUsd, ['% rozpočtu'] = Pct, ['Dosažen práh pro blokaci'] = Revoke"
       size  = 4
     }
     teams = {
@@ -18,9 +18,9 @@ locals {
       viz   = "table"
       query = <<-KQL
         let LastAction = CostControl_CL | where Action == 'revoked' | summarize ['Poslední revoke'] = max(TimeGenerated) by Team;
-        HackathonCostStatus() | where Scope == 'team'
+        HackathonCostStatus() | where Scope == 'team' and Team matches regex '^team[0-9]{2}$'
         | join kind=leftouter LastAction on Team
-        | extend Stav = case(Revoke, 'REVOKED', Pct >= ${local.warn_pct}, 'VAROVÁNÍ', 'OK')
+        | extend Stav = case(Revoke, 'DOSAŽEN PRÁH PRO BLOKACI', Pct >= ${local.warn_pct}, 'VAROVÁNÍ', 'OK')
         | project Team, ['Spotřeba USD'] = CostUsd, ['Rozpočet USD'] = LimitUsd, ['%'] = Pct, Stav, ['Poslední revoke']
         | order by ['%'] desc
       KQL
@@ -80,7 +80,7 @@ locals {
   workbook_data = {
     version = "Notebook/1.0"
     items = concat(
-      [{ type = 1, name = "header", content = { json = "## Hackathon – náklady a rozpočty\nOkno od `${var.budget_window_start}`. Rozpočet celkem ${var.overall_budget_usd} USD (revoke od ${var.overall_budget_usd - var.overall_revoke_safety_margin_usd} USD), na tým ${var.team_budget_usd} USD, varování od ${local.warn_pct} %. Data mají zpoždění ~3 min; stav/akce jobu se aktualizují každých 5 min." } }],
+      [{ type = 1, name = "header", content = { json = "## Hackathon – odhad nákladů a rozpočty\nOkno od `${var.budget_window_start}`. Rozpočet celkem ${var.overall_budget_usd} USD (práh blokace ${var.overall_budget_usd - var.overall_revoke_safety_margin_usd} USD), na tým ${var.team_budget_usd} USD, varování od ${local.warn_pct} %. Jde o odhad ceny modelů ze zaznamenaných úspěšných APIM požadavků, nikoli fakturu Azure; nezahrnuje hosting APIM ani další infrastrukturu. Obrázky jsou odhadnuté po požadavcích, cache slevy nejsou započtené. Celkový součet zahrnuje i provozní subscriptions. Dosažení prahu neznamená potvrzenou blokaci; historická revoke akce nepopisuje aktuální stav APIM. Data mají zpoždění ~3 min; akce jobu se aktualizují každých 5 min. Přehled SWA doplňuje i týmy bez spotřeby a aktuální stav APIM." } }],
       [for k in ["overall", "teams", "matrix", "cost_team", "cost_model", "tokens_team", "images", "actions"] : local.wb_item[k]]
     )
     isLocked = false

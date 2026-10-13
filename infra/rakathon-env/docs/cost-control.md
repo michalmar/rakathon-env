@@ -35,7 +35,15 @@ Ceny jsou z Azure Retail Prices API (`serviceName=Foundry Models`, swedencentral
 1. **KQL funkce v LAW** (`HackathonRequests`, `HackathonUsage`, `HackathonCostStatus`) – spojí `ApiManagementGatewayLogs` a `ApiManagementGatewayLlmLog` (podle `CorrelationId`, jen HTTP 200, `ApimSubscriptionId` = název subscription) a vynásobí ceníkem. Obrázky se počítají po požadavcích.
 2. **Logic App `logic-rakathon-costjob`** (každých 5 min, system MI): načte `HackathonCostStatus()`, zapíše snapshot do tabulky `CostControl_CL` (Scope, Team, CostUsd, LimitUsd, Pct, Action=`status`) a pro každou **aktivní** subscription `team*` s překročeným limitem (nebo při překročení celkového limitu pro všechny) udělá `PATCH state=suspended` a zapíše záznam `Action=revoked`. Subscription `ops-*` se nikdy nesuspendují. Role MI: API Management Service Contributor (APIM), Log Analytics Reader (LAW), Monitoring Metrics Publisher (DCR).
 3. **Alerty** (Action group `ag-rakathon-budget`, 3 e-maily; scheduled query rules nad `CostControl_CL`, každých 5 min, per tým = jedna notifikace dokud se stav nezmění): `team-warn`, `overall-warn`, `team-revoked`, `overall-revoked`, plus `job-stalled` (job 20 min nezapsal nic → fail-open, zkontrolujte Logic App).
-4. **Workbook** „Hackathon – náklady a rozpočty“ (odkaz: `terraform output cost_workbook_url`): celkem vs. 5 000 USD, týmy vs. 1 000 USD se stavem (OK / VAROVÁNÍ / REVOKED), tým × deployment, náklady a tokeny v čase, obrázky, poslední akce jobu.
+4. **Workbook** „Hackathon – náklady a rozpočty“ (odkaz: `terraform output cost_workbook_url`): celkem vs. 5 000 USD, týmy vs. 1 000 USD s rozpočtovým stavem (OK / VAROVÁNÍ / DOSAŽEN PRÁH PRO BLOKACI), tým × deployment, náklady a tokeny v čase, obrázky, poslední akce jobu. Práh není potvrzení skutečného suspendování; historická revoke akce nepopisuje aktuální stav APIM.
+5. **SWA přehled Náklady**: pouze pro autentizované účty mimo `teamNN` (omezení ve frontendu i API). `GET /api/spend` ve stávající Function čte stejné KQL funkce a novou `HackathonCostConfig()` s rozpočtovou konfigurací. Managed identity má Log Analytics Reader pouze na gateway workspace. APIM roster doplňuje týmy bez spotřeby a skutečný stav přístupu; klíče se nečtou. Přehled rozlišuje týmovou a ostatní spotřebu, modely, tým × deployment a posledních 24 hodin. Celkový rozpočet nadále zahrnuje všechny zaznamenané subscriptions. Při chybě ani částečném výsledku LAW nevrací falešnou nulu.
+
+Workbook i SWA zobrazují **odhad ceny modelů**, nikoli fakturu Azure: pouze
+zaznamenané úspěšné požadavky přes APIM, bez ceny APIM a další infrastruktury,
+bez cache slev a s odhadem ceny obrázků po požadavcích. Přehled SWA uvádí
+časy dotazu, poslední spotřeby a snapshotu jobu a varuje při chybějícím nebo
+více než 20 minut starém snapshotu. API má minutovou cache v paměti instance;
+SWA obnovuje viditelnou sekci každé dvě minuty a podporuje ruční obnovu.
 
 Zpoždění od požadavku po revoke: logy ~2,5 min + běh jobu (až 5 min) → typicky 3–8 min.
 

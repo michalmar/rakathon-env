@@ -60,13 +60,14 @@ function validatedBlobName(value) {
   return value;
 }
 
-async function managedIdentityToken(env, fetchImpl) {
+async function managedIdentityToken(env, fetchImpl, resource = "https://management.azure.com/") {
   const response = await fetchImpl(
-    `${env.IDENTITY_ENDPOINT}?resource=${encodeURIComponent("https://management.azure.com/")}&api-version=2019-08-01`,
-    { headers: { "X-IDENTITY-HEADER": env.IDENTITY_HEADER } },
+    `${env.IDENTITY_ENDPOINT}?resource=${encodeURIComponent(resource)}&api-version=2019-08-01`,
+    { headers: { "X-IDENTITY-HEADER": env.IDENTITY_HEADER }, signal: AbortSignal.timeout(10000) },
   );
   if (!response.ok) throw new HttpError(502, "upstream-error");
   const body = await response.json();
+  if (typeof body.access_token !== "string" || !body.access_token) throw new HttpError(502, "upstream-error");
   return body.access_token;
 }
 
@@ -101,4 +102,5 @@ async function dataLink(headers, blobName, env, createLink) {
 module.exports = {
   HttpError, parsePrincipal, teamFromUpn, teamFromPrincipalHeader, validatedBlobName,
   fetchTeamKey, myKey, dataLink,
+  managedIdentityToken,
 };

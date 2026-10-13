@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nasadí backend portálu (GET /api/my-key a GET /api/data-link) zip deploy balíčkem.
+# Nasadí backend portálu (GET /api/my-key, /api/data-link a /api/spend) zip deploy balíčkem.
 # Vyžaduje: az (přihlášený do správného tenantu), terraform, npm, zip.
 
 set -euo pipefail
@@ -25,4 +25,11 @@ az functionapp deployment source config-zip \
   --only-show-errors \
   --output none
 
-echo "Function ${app_name} nasazena. Endpointy /api/my-key a /api/data-link vyžadují hlavičku identity ze SWA."
+app_id="$(az functionapp show --name "${app_name}" --resource-group "${resource_group}" --query id --only-show-errors --output tsv)"
+az rest \
+  --method post \
+  --url "https://management.azure.com${app_id}/syncfunctiontriggers?api-version=2024-04-01" \
+  --only-show-errors \
+  --output none
+
+echo "Function ${app_name} nasazena. Endpointy /api/my-key, /api/data-link a /api/spend vyžadují hlavičku identity ze SWA."
