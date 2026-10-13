@@ -1,0 +1,659 @@
+{
+  "customPolicies": [
+    {
+      "name": "VirtualMachine_SKU_Deny",
+      "properties": {
+        "description": "Deny the Azure Virtual Machines and Virtual Machine Scaleset Deployments with H Series (H, HBv2, HBv3, HBv4) size SKUs",
+        "displayName": "Block VM SKU Sizes",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Compute"
+        },
+        "mode": "All",
+        "parameters": {
+          "BlockedSKUs": {
+            "metadata": {
+              "description": "The list of VM SKUs to block",
+              "displayName": "Blocked skus"
+            },
+            "type": "Array"
+          }
+        },
+        "policyRule": {
+          "if": {
+            "AllOf": [
+              {
+                "AnyOf": [
+                  {
+                    "field": "type",
+                    "in": [
+                      "Microsoft.Compute/virtualMachines"
+                    ]
+                  },
+                  {
+                    "field": "type",
+                    "in": [
+                      "Microsoft.Compute/virtualMachineScaleSets"
+                    ]
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "AllOf": [
+                      {
+                        "field": "Microsoft.Compute/virtualMachines/sku.name",
+                        "in": "[parameters('BlockedSKUs')]"
+                      },
+                      {
+                        "field": "Microsoft.Compute/virtualMachines/priority",
+                        "notEquals": "Spot"
+                      }
+                    ]
+                  },
+                  {
+                    "AllOf": [
+                      {
+                        "field": "Microsoft.Compute/virtualMachineScaleSets/sku.name",
+                        "in": "[parameters('BlockedSKUs')]"
+                      },
+                      {
+                        "field": "Microsoft.Compute/virtualMachineScaleSets/virtualMachineProfile.priority",
+                        "notEquals": "Spot"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "AKS_LimitNodeCount_Deny",
+      "properties": {
+        "description": "Require a single named AKS node pool with at most three configured nodes and an autoscaling maximum of three. Block automatic node provisioning and VirtualMachines pools.",
+        "displayName": "Limit AKS to one node pool and three nodes",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Compute"
+        },
+        "mode": "All",
+        "parameters": {
+          "AllowedNodePoolName": {
+            "type": "String",
+            "defaultValue": "nodepool1",
+            "metadata": {
+              "description": "The only permitted node pool name. A fixed name prevents additional pools through child-resource requests.",
+              "displayName": "Allowed node pool name"
+            }
+          }
+        },
+        "policyRule": {
+          "if": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "field": "type",
+                    "equals": "Microsoft.ContainerService/managedClusters"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "field": "Microsoft.ContainerService/managedClusters/sku.name",
+                        "equals": "Automatic"
+                      },
+                      {
+                        "field": "Microsoft.ContainerService/managedClusters/nodeProvisioningProfile.mode",
+                        "equals": "Auto"
+                      },
+                      {
+                        "count": {
+                          "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*]"
+                        },
+                        "greater": 1
+                      },
+                      {
+                        "count": {
+                          "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*]",
+                          "where": {
+                            "anyOf": [
+                              {
+                                "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*].name",
+                                "notEquals": "[parameters('AllowedNodePoolName')]"
+                              },
+                              {
+                                "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*].type",
+                                "equals": "VirtualMachines"
+                              },
+                              {
+                                "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*].count",
+                                "greater": 3
+                              },
+                              {
+                                "allOf": [
+                                  {
+                                    "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*].enableAutoScaling",
+                                    "equals": true
+                                  },
+                                  {
+                                    "field": "Microsoft.ContainerService/managedClusters/agentPoolProfiles[*].maxCount",
+                                    "greater": 3
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "greater": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "field": "type",
+                    "equals": "Microsoft.ContainerService/managedClusters/agentPools"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "field": "name",
+                        "notEquals": "[parameters('AllowedNodePoolName')]"
+                      },
+                      {
+                        "field": "Microsoft.ContainerService/managedClusters/agentPools/type",
+                        "equals": "VirtualMachines"
+                      },
+                      {
+                        "field": "Microsoft.ContainerService/managedClusters/agentPools/count",
+                        "greater": 3
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "field": "Microsoft.ContainerService/managedClusters/agentPools/enableAutoScaling",
+                            "equals": true
+                          },
+                          {
+                            "field": "Microsoft.ContainerService/managedClusters/agentPools/maxCount",
+                            "greater": 3
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "VMSS_LimitNodesCount_Deny",
+      "properties": {
+        "description": "Deny the Azure Virtual Machine Scale set Deployments with instance count greater than 3",
+        "displayName": "Deny VMSS deployment with instance count greater than 3",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Compute"
+        },
+        "mode": "All",
+        "parameters": {},
+        "policyRule": {
+          "if": {
+            "AllOf": [
+              {
+                "equals": "Microsoft.Compute/virtualMachineScaleSets",
+                "field": "type"
+              },
+              {
+                "exists": true,
+                "field": "Microsoft.Compute/virtualMachineScaleSets/sku.capacity"
+              },
+              {
+                "field": "Microsoft.Compute/virtualMachineScaleSets/sku.capacity",
+                "notEquals": ""
+              },
+              {
+                "greater": 3,
+                "value": "[int(if(empty(string(field('Microsoft.Compute/virtualMachineScaleSets/sku.capacity'))), '0', string(field('Microsoft.Compute/virtualMachineScaleSets/sku.capacity'))))]"
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "AzureOpenAI_ProvisionedCapacity_Deny",
+      "properties": {
+        "description": "Deny the Azure OpenAI Deployments with Provisioned Capacity",
+        "displayName": "Block Azure OpenAI Provisioned Capacity",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Cognitive Services"
+        },
+        "mode": "All",
+        "parameters": {},
+        "policyRule": {
+          "if": {
+            "AllOf": [
+              {
+                "equals": "Microsoft.CognitiveServices/accounts/deployments",
+                "field": "type"
+              },
+              {
+                "field": "Microsoft.CognitiveServices/accounts/deployments/sku.name",
+                "in": [
+                  "ProvisionedManaged",
+                  "GlobalProvisionedManaged",
+                  "DataZoneProvisionedManaged"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "Sentinel_Commitment_Deny",
+      "properties": {
+        "description": "Deny the Azure Sentinel Deployments with Commitment over 100",
+        "displayName": "Block Azure Sentinel Commitment over 100",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Monitoring"
+        },
+        "mode": "All",
+        "parameters": {},
+        "policyRule": {
+          "if": {
+            "AllOf": [
+              {
+                "equals": "Microsoft.OperationalInsights/workspaces",
+                "field": "type"
+              },
+              {
+                "field": "Microsoft.OperationalInsights/workspaces/sku.capacityReservationLevel",
+                "greater": 100
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "name": "KeyVaultManagedHSM_PurgeProtectionEnabled_Deny",
+      "properties": {
+        "description": "Deny Azure Key Vault Managed HSM with Purge Protection Enabled",
+        "displayName": "Deny Azure Key Vault Managed HSM with Purge Protection Enabled",
+        "metadata": {
+          "Version": "20261008-1",
+          "category": "Key Vault"
+        },
+        "mode": "All",
+        "parameters": {
+          "AllowedTagName": {
+            "defaultValue": "CostControl",
+            "metadata": {
+              "description": "Name of the tag, such as 'CostControl'",
+              "displayName": "Tag Name"
+            },
+            "type": "String"
+          },
+          "AllowedTagValue": {
+            "defaultValue": "Ignore",
+            "metadata": {
+              "description": "Value of the tag, such as 'Ignore'",
+              "displayName": "Tag Value"
+            },
+            "type": "String"
+          }
+        },
+        "policyRule": {
+          "if": {
+            "AllOf": [
+              {
+                "equals": "Microsoft.KeyVault/managedHSMs",
+                "field": "type"
+              },
+              {
+                "Equals": "true",
+                "field": "Microsoft.KeyVault/managedHsms/enablePurgeProtection"
+              },
+              {
+                "not": {
+                  "AnyOf": [
+                    {
+                      "equals": "[parameters('AllowedTagValue')]",
+                      "field": "[concat('tags[', parameters('AllowedTagName'), ']')]"
+                    },
+                    {
+                      "equals": "[parameters('AllowedTagValue')]",
+                      "value": "[resourceGroup().tags[parameters('AllowedTagName')]]"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "then": {
+            "effect": "Deny"
+          }
+        },
+        "policyType": "Custom",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "initiative": {
+    "name": "GovDenyPolicies",
+    "properties": {
+      "description": "Deny policies",
+      "displayName": "Set of Deny policies used by  Governance to restrict specific resource types or SKUs",
+      "metadata": {
+        "Version": "20261008-1",
+        "category": "General"
+      },
+      "policyType": "Custom",
+      "version": "1.0.0",
+      "policyDefinitions": [
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {
+            "BlockedSKUs": {
+              "value": [
+                "Standard_HB120-16rs_v2",
+                "Standard_HB120-16rs_v3",
+                "Standard_HB120-32rs_v2",
+                "Standard_HB120-32rs_v3",
+                "Standard_HB120-64rs_v2",
+                "Standard_HB120-64rs_v3",
+                "Standard_HB120-96rs_v2",
+                "Standard_HB120-96rs_v3",
+                "Standard_HB120rs_v2",
+                "Standard_HB120rs_v3",
+                "Standard_HB60-15rs",
+                "Standard_HB60-30rs",
+                "Standard_HB60-45rs",
+                "Standard_HB60rs",
+                "Standard_HC44-16rs",
+                "Standard_HC44-32rs",
+                "Standard_HC44rs"
+              ]
+            }
+          },
+          "policyDefinitionReferenceId": "BlockVMSKUs_H",
+          "policyDefinitionId": "VirtualMachine_SKU_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {
+            "BlockedSKUs": {
+              "value": [
+                "standard_m128",
+                "standard_m128-32ms",
+                "standard_m128-64ms",
+                "standard_m128dms_v2",
+                "standard_m128ds_v2",
+                "standard_m128m",
+                "standard_m128ms",
+                "standard_m128ms_v2",
+                "standard_m128s",
+                "standard_m128s_v2",
+                "standard_m16-4ms",
+                "standard_m16-8ms",
+                "standard_m16ms",
+                "standard_m192idms_v2",
+                "standard_m192ids_v2",
+                "standard_m192ims_v2",
+                "standard_m192is_v2",
+                "standard_m208ms_v2",
+                "standard_m208s_v2",
+                "standard_m32-16ms",
+                "standard_m32ls",
+                "standard_m32dms_v2",
+                "standard_m32-8ms",
+                "standard_m32ms",
+                "standard_m32ms_v2",
+                "standard_m32ts",
+                "standard_m416-208ms_v2",
+                "standard_m416-208s_v2",
+                "standard_m416ms_v2",
+                "standard_m416s_v2",
+                "standard_m64",
+                "standard_m64-16ms",
+                "standard_m64-32ms",
+                "standard_m64dms_v2",
+                "standard_m64ds_v2",
+                "standard_m64ls",
+                "standard_m64ms",
+                "standard_m64m",
+                "standard_m64ms_v2",
+                "standard_m64s",
+                "standard_m64s_v2",
+                "standard_m8-2ms",
+                "standard_m8-4ms",
+                "standard_m8ms"
+              ]
+            }
+          },
+          "policyDefinitionReferenceId": "BlockVMSKUs_M",
+          "policyDefinitionId": "VirtualMachine_SKU_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {
+            "BlockedSKUs": {
+              "value": [
+                "standard_nc12",
+                "standard_nc12_promo",
+                "standard_nc12s_v2",
+                "standard_nc12s_v3",
+                "standard_nc16ads_a10_v4",
+                "standard_nc16as_t4_v3",
+                "standard_nc24",
+                "standard_nc24r",
+                "standard_nc24ads_a100_v4",
+                "standard_nc24_promo",
+                "standard_nc24s_v2",
+                "standard_nc24rs_v3",
+                "standard_nc24rs_v2",
+                "standard_nc24r_promo",
+                "standard_nc6",
+                "standard_nc4as_t4_v3",
+                "standard_nc48ads_a100_v4",
+                "standard_nc32ads_a10_v4",
+                "standard_nc24s_v3",
+                "standard_nc6_promo",
+                "standard_nc64as_t4_v3",
+                "standard_nc6s_v2",
+                "standard_nc6s_v3",
+                "standard_nc8ads_a10_v4",
+                "standard_nc8as_t4_v3",
+                "standard_nc96ads_a100_v4",
+                "standard_nd6s",
+                "standard_nd40rs_v2",
+                "standard_nd24s",
+                "standard_nd24rs",
+                "standard_nd12s",
+                "standard_nd96amsr_a100_v4",
+                "standard_nd96asr_v4",
+                "standard_nv12",
+                "standard_nv10ads_a10_v5",
+                "standard_np40s",
+                "standard_np20s",
+                "standard_np10s",
+                "standard_nv20ads_a10_v5",
+                "standard_nv20adms_a10_v5",
+                "standard_nv18ads_a10_v5",
+                "standard_nv16as_v4",
+                "standard_nv12s_v3",
+                "standard_nv12s_v2",
+                "standard_nv12ads_a10_v5",
+                "standard_nv12_promo",
+                "standard_nv24",
+                "standard_nv32as_v4",
+                "standard_nv30ads_a10_v5",
+                "standard_nv24s_v3",
+                "standard_nv24s_v2",
+                "standard_nv24_promo",
+                "standard_nv30adms_a10_v5",
+                "standard_nv36adms_a10_v5",
+                "standard_nv36ads_a10_v5",
+                "standard_nv40ads_a10_v5",
+                "standard_nv6s_v2",
+                "standard_nv6ads_a10_v5",
+                "standard_nv6_promo",
+                "standard_nv6",
+                "standard_nv4as_v4",
+                "standard_nv4ads_a10_v5",
+                "standard_nv48s_v3",
+                "standard_nv72ads_a10_v5",
+                "standard_nv8as_v4"
+              ]
+            }
+          },
+          "policyDefinitionReferenceId": "BlockVMSKUs_N",
+          "policyDefinitionId": "VirtualMachine_SKU_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {},
+          "policyDefinitionReferenceId": "AKS_LimitNodeCount",
+          "policyDefinitionId": "AKS_LimitNodeCount_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {},
+          "policyDefinitionReferenceId": "VMSS_LimitNodesCount",
+          "policyDefinitionId": "VMSS_LimitNodesCount_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {},
+          "policyDefinitionReferenceId": "OpenAI_BlockProvisionedCapacity",
+          "policyDefinitionId": "AzureOpenAI_ProvisionedCapacity_Deny"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {},
+          "policyDefinitionReferenceId": "Sentinel_Commitment_Deny",
+          "policyDefinitionId": "Sentinel_Commitment_Deny"
+        },
+        {
+          "definitionVersion": "2.*.*",
+          "parameters": {
+            "listOfResourceTypesNotAllowed": {
+              "value": [
+                "microsoft.classiccompute/virtualmachines",
+                "microsoft.classiccompute/virtualmachines/diagnosticsettings",
+                "microsoft.classiccompute/virtualmachines/metricdefinitions",
+                "microsoft.classiccompute/virtualmachines/metrics",
+                "microsoft.classicnetwork/virtualnetworks",
+                "microsoft.classicnetwork/virtualnetworks/remotevirtualnetworkpeeringproxies",
+                "microsoft.classicnetwork/virtualnetworks/virtualnetworkpeerings",
+                "microsoft.classicstorage/checkstorageaccountavailability",
+                "microsoft.classicstorage/storageaccounts",
+                "microsoft.classicstorage/storageaccounts/blobservices",
+                "microsoft.classicstorage/storageaccounts/fileservices",
+                "microsoft.classicstorage/storageaccounts/metricdefinitions",
+                "microsoft.classicstorage/storageaccounts/metrics",
+                "microsoft.classicstorage/storageaccounts/queueservices",
+                "microsoft.classicstorage/storageaccounts/services",
+                "microsoft.classicstorage/storageaccounts/services/diagnosticsettings",
+                "microsoft.classicstorage/storageaccounts/services/metricdefinitions",
+                "microsoft.classicstorage/storageaccounts/services/metrics",
+                "microsoft.classicstorage/storageaccounts/tableservices",
+                "microsoft.classicstorage/storageaccounts/vmimages",
+                "microsoft.classiccompute/capabilities",
+                "microsoft.classiccompute/checkdomainnameavailability",
+                "microsoft.classiccompute/domainnames",
+                "microsoft.classiccompute/domainnames/capabilities",
+                "microsoft.classiccompute/domainnames/internalloadbalancers",
+                "microsoft.classiccompute/domainnames/servicecertificates",
+                "microsoft.classiccompute/domainnames/slots",
+                "microsoft.classiccompute/domainnames/slots/roles",
+                "microsoft.classiccompute/domainnames/slots/roles/metricdefinitions",
+                "microsoft.classiccompute/domainnames/slots/roles/metrics",
+                "microsoft.classiccompute/movesubscriptionresources",
+                "microsoft.classiccompute/operatingsystemfamilies",
+                "microsoft.classiccompute/operatingsystems",
+                "microsoft.classiccompute/operations",
+                "microsoft.classiccompute/operationstatuses",
+                "microsoft.classiccompute/quotas",
+                "microsoft.classiccompute/resourcetypes",
+                "microsoft.classiccompute/validatesubscriptionmoveavailability",
+                "microsoft.classicnetwork/capabilities",
+                "microsoft.classicnetwork/expressroutecrossconnections",
+                "microsoft.classicnetwork/expressroutecrossconnections/peerings",
+                "microsoft.classicnetwork/gatewaysupporteddevices",
+                "microsoft.classicnetwork/networksecuritygroups",
+                "microsoft.classicnetwork/operations",
+                "microsoft.classicnetwork/quotas",
+                "microsoft.classicnetwork/reservedips",
+                "microsoft.classicstorage/capabilities",
+                "microsoft.classicstorage/disks",
+                "microsoft.classicstorage/images",
+                "microsoft.classicstorage/operations",
+                "microsoft.classicstorage/osimages",
+                "microsoft.classicstorage/osplatformimages",
+                "microsoft.classicstorage/publicimages",
+                "microsoft.classicstorage/quotas",
+                "microsoft.classicstorage/vmimages",
+                "microsoft.classicsubscription/operations",
+                "microsoft.classicinfrastructuremigrate/classicinfrastructureresources"
+              ]
+            }
+          },
+          "policyDefinitionReferenceId": "NotAllowedResourceTypes",
+          "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/6c112d4e-5bc7-47ae-a041-ea2d9dccd749"
+        },
+        {
+          "definitionVersion": "1.*.*",
+          "parameters": {
+            "AllowedTagName": {
+              "value": "CostControl"
+            },
+            "AllowedTagValue": {
+              "value": "Ignore"
+            }
+          },
+          "policyDefinitionReferenceId": "KeyVaultManagedHSM_PurgeProtectionEnabled",
+          "policyDefinitionId": "KeyVaultManagedHSM_PurgeProtectionEnabled_Deny"
+        }
+      ]
+    }
+  }
+}
