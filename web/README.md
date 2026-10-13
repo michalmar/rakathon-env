@@ -138,6 +138,23 @@ posledních 24 hodin. Graf má také rozbalitelnou číselnou tabulku.
 Peněžní částky používají české číselné formátování, dvě desetinná místa
 a označení `USD`; výpočet a data API si zachovávají plnou přesnost.
 
+Kliknutí na tým v tabulce nebo grafu, případně výběr v poli **Tým**, filtruje
+souhrn, modelové součty, rozpad subscription × deployment a hodinový graf
+současně. **Zobrazit vše** filtr odstraní. Seznam týmů a graf jejich
+vyčerpání zůstávají nefiltrované pro porovnání a přepnutí týmu; celková
+spotřeba akce je ve vybraném týmovém souhrnu výslovně označená jako
+nefiltrovaná. Výběr týmu i řazení se zachovávají při obnově dat.
+
+Kliknutím na záhlaví lze všechny tabulky řadit vzestupně/sestupně;
+číselné sloupce se řadí podle původních hodnot, ne zformátovaného textu.
+Modely používají stejné ikony poskytovatelů jako katalog; historický
+deployment chybějící v katalogu má neutrální ikonu bez odhadování značky.
+Graf týmů řadí podle procenta vyčerpaného rozpočtu, ukazuje hranice
+varování/limitu a zbývající částku. Graf nákladových položek ukazuje
+šest nejdražších modelů, jejich podíl a součet zbývajících modelů;
+všechny řádky zůstávají v tabulce. Hodinový graf uvádí nejvyšší hodinový
+odhad a upozorňuje, že aktuální hodina je neúplná.
+
 Data se načítají při zobrazení sekce a obnovují každé dvě minuty, pouze
 při viditelné stránce a sekci. Tlačítko umožňuje ruční obnovu. Backend
 sdílí úspěšný přehled v paměti instance nejvýše minutu, vždy až po ověření

@@ -65,3 +65,33 @@ export function spendFixture(): Spend {
     hourly: [{ at: new Date(Math.floor(Date.now() / 3600000) * 3600000).toISOString(), team: "team07", deployment: "test-model-one", costUsd: 12 }],
   };
 }
+
+export function interactiveSpendFixture(): Spend {
+  const data = spendFixture();
+  const hour = data.hourly[0]!.at;
+  data.usage = [
+    { team: "team07", deployment: "test-model-one", costUsd: 10, requests: 2, promptTokens: 100, completionTokens: 20, images: 0 },
+    { team: "team08", deployment: "test-model-one", costUsd: 2, requests: 10, promptTokens: 30, completionTokens: 10, images: 0 },
+    { team: "ops-test", deployment: "test-model-one", costUsd: 0.25, requests: 1, promptTokens: 10, completionTokens: 5, images: 0 },
+    { team: "team07", deployment: "test-model-two", costUsd: 100, requests: 100, promptTokens: 1000, completionTokens: 200, images: 0 },
+    { team: "team08", deployment: "test-model-two", costUsd: 30, requests: 9, promptTokens: 300, completionTokens: 100, images: 0 },
+    { team: "ops-test", deployment: "old-model", costUsd: 3, requests: 20, promptTokens: 500, completionTokens: 150, images: 1 },
+  ];
+  data.models = [
+    { deployment: "test-model-one", costUsd: 12.25, teamCostUsd: 12, otherCostUsd: 0.25, requests: 13, promptTokens: 140, completionTokens: 35, images: 0 },
+    { deployment: "test-model-two", costUsd: 130, teamCostUsd: 130, otherCostUsd: 0, requests: 109, promptTokens: 1300, completionTokens: 300, images: 0 },
+    { deployment: "old-model", costUsd: 3, teamCostUsd: 0, otherCostUsd: 3, requests: 20, promptTokens: 500, completionTokens: 150, images: 1 },
+  ];
+  data.teams = [
+    { team: "team07", state: "active", costUsd: 110, budgetUsd: 100, pct: 110, budgetExceeded: true, warning: true, blockedByOverall: false },
+    { team: "team08", state: "suspended", costUsd: 32, budgetUsd: 1000, pct: 3.2, budgetExceeded: false, warning: false, blockedByOverall: false },
+    { team: "team09", state: "active", costUsd: 0, budgetUsd: 1000, pct: 0, budgetExceeded: false, warning: false, blockedByOverall: false },
+  ];
+  data.summary = { ...data.summary, costUsd: 145.25, teamCostUsd: 142, otherCostUsd: 3.25, pct: 2.905 };
+  data.hourly = [
+    { at: hour, team: "team07", deployment: "test-model-one", costUsd: 12 },
+    { at: hour, team: "team08", deployment: "test-model-two", costUsd: 3 },
+    { at: hour, team: "ops-test", deployment: "old-model", costUsd: 4 },
+  ];
+  return data;
+}

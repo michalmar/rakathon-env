@@ -1,6 +1,7 @@
 import "./styles.css";
 import { parseUser } from "./auth";
 import { canViewSpend, spendSection } from "./spend";
+import { providerMark } from "./providers";
 import { generateIrisPassword, irisDeployment, irisTeam, validContainerName } from "./iris";
 import { blobUrl, loadDataLink } from "./data";
 import { curlExample, loadTeamKey, maskKey, pythonExample, pythonResponsesExample, type KeyResult, type TeamKey } from "./key";
@@ -121,30 +122,6 @@ function externalLink(label: string, href: string, primary = false): HTMLAnchorE
 function plural(count: number, one: string, few: string, many: string): string {
   const form = new Intl.PluralRules("cs-CZ").select(count);
   return `${count} ${form === "one" ? one : form === "few" ? few : many}`;
-}
-
-const providerPresentation: Record<ModelDeployment["format"], { name: string; logo?: string; wordmark?: string }> = {
-  OpenAI: { name: "OpenAI", logo: "/provider-openai.svg" },
-  xAI: { name: "xAI", wordmark: "xAI" },
-  DeepSeek: { name: "DeepSeek", logo: "/provider-deepseek.svg" },
-  Microsoft: { name: "Microsoft AI", logo: "/microsoft-logo.png" },
-  MoonshotAI: { name: "Moonshot AI / Kimi", logo: "/provider-kimi.ico" },
-};
-
-function providerMark(format: ModelDeployment["format"]): HTMLElement {
-  const provider = providerPresentation[format];
-  const mark = element("span", `provider-mark provider-${format.toLowerCase()}`);
-  mark.title = provider.name;
-  mark.setAttribute("aria-label", provider.name);
-  if (provider.logo) {
-    const image = element("img", "provider-logo");
-    image.src = provider.logo;
-    image.alt = "";
-    mark.append(image);
-  } else {
-    mark.append(element("span", "provider-wordmark", provider.wordmark));
-  }
-  return mark;
 }
 
 function deploymentType(model: ModelDeployment): HTMLElement {
@@ -870,7 +847,7 @@ function render(catalog: Catalog, user: string): void {
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
   main.append(keySection(), models, storageSection(catalog), irisSection(user), githubSection(), examplesSection(catalog));
-  if (!import.meta.env.DEV && canViewSpend(user)) main.append(spendSection());
+  if (!import.meta.env.DEV && canViewSpend(user)) main.append(spendSection(catalog.foundry.models));
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Privátní data · krátkodobé odkazy pouze pro přihlášené týmy"));

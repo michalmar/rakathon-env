@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { catalogFixture, spendFixture, userFixture } from "./fixtures";
+import { catalogFixture, interactiveSpendFixture, spendFixture, userFixture } from "./fixtures";
 
 async function prepare(page: Page, user = "organizer@example.com") {
   const principal = userFixture();
@@ -105,8 +105,106 @@ test("empty usage and stalled job have explicit states", async ({ page }) => {
   await expect(section.getByText("Automatické blokování je vypnuté.", { exact: false })).toBeVisible();
 });
 
+test("team clicks cross-filter summaries, model totals, detail tables and hourly charts", async ({ page }) => {
+  await prepare(page);
+  await page.route("**/api/spend", (route) => route.fulfill({ json: interactiveSpendFixture() }));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Náklady", exact: true }).click();
+  const section = page.locator("#spend");
+  const teams = section.getByRole("table", { name: "Týmy · rozpočet a skutečný stav APIM" });
+  const models = section.getByRole("table", { name: "Modely · odhad za celé rozpočtové okno" });
+  await section.getByText("Rozpad tým × deployment", { exact: true }).click();
+  await expect(section.getByRole("table", { name: "Spotřeba podle subscription a deploymentu" })).toBeVisible();
+  await teams.getByRole("button", { name: "Filtrovat tým team07", exact: true }).click();
+  await expect(section.getByRole("combobox", { name: "Filtrovat přehled podle týmu" })).toHaveValue("team07");
+  await expect(section.locator(".spend-summary dd").first()).toHaveText("110,00 USD");
+  await expect(section.locator(".spend-summary")).toContainText("Celá akce (nefiltrovaná)");
+  await expect(section.locator(".spend-summary")).toContainText("145,25 USD");
+  await expect(models.locator("tbody tr")).toHaveCount(2);
+  await expect(models.getByRole("row").filter({ hasText: "test-model-two" }).locator("td").first()).toHaveText("100,00 USD");
+  await expect(models.getByRole("row").filter({ hasText: "test-model-one" }).locator("td").first()).toHaveText("10,00 USD");
+  const usage = section.getByRole("table", { name: "Spotřeba podle subscription a deploymentu" });
+  await expect(usage).toBeVisible();
+  await expect(usage.locator("tbody tr")).toHaveCount(2);
+  await expect(usage).not.toContainText("ops-test");
+  await expect(usage).not.toContainText("team08");
+  await expect(section.locator(".spend-chart-label").first()).toHaveText("12,00 USD");
+  await expect(section.locator(".spend-model-chart")).not.toContainText("old-model");
+  await expect(teams.locator("tbody tr")).toHaveCount(3);
+  await expect(teams.getByRole("button", { name: "Filtrovat tým team07", exact: true })).toBeFocused();
+  await expect(teams.getByRole("button", { name: "Filtrovat tým team07", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await section.getByRole("button", { name: "Zobrazit vše", exact: true }).click();
+  await expect(section.getByRole("combobox")).toHaveValue("");
+  await expect(models.locator("tbody tr")).toHaveCount(3);
+  await expect(usage.locator("tbody tr")).toHaveCount(6);
+  await expect(section.locator(".spend-chart-label").first()).toHaveText("19,00 USD");
+});
+
+test("sorting uses numeric values, toggles aria-sort and persists through filtering and refresh", async ({ page }) => {
+  await prepare(page);
+  await page.route("**/api/spend", (route) => route.fulfill({ json: interactiveSpendFixture() }));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Náklady", exact: true }).click();
+  const section = page.locator("#spend");
+  const models = section.getByRole("table", { name: "Modely · odhad za celé rozpočtové okno" });
+  await models.getByRole("button", { name: "Seřadit podle Odhad USD", exact: true }).click();
+  await expect(models.getByRole("columnheader").filter({ hasText: "Odhad USD" })).toHaveAttribute("aria-sort", "ascending");
+  await expect(models.locator("tbody tr th")).toHaveText(["◇old-model", "test-model-one", "xAItest-model-two"]);
+  await models.getByRole("button", { name: "Seřadit podle Požadavky", exact: true }).click();
+  await expect(models.locator("tbody tr").first()).toContainText("test-model-two");
+  await expect(models.locator("tbody tr").nth(1)).toContainText("old-model");
+  await models.getByRole("button", { name: "Seřadit podle Odhad USD", exact: true }).click();
+  await models.getByRole("button", { name: "Seřadit podle Odhad USD", exact: true }).click();
+  await section.getByRole("combobox").selectOption("team07");
+  await expect(models.locator("tbody tr").first()).toContainText("test-model-one");
+  await section.getByRole("button", { name: "Obnovit přehled", exact: true }).click();
+  await expect(section.getByRole("combobox")).toHaveValue("team07");
+  await expect(models.getByRole("columnheader").filter({ hasText: "Odhad USD" })).toHaveAttribute("aria-sort", "ascending");
+  await expect(models.locator("tbody tr").first()).toContainText("test-model-one");
+  const teams = section.getByRole("table", { name: "Týmy · rozpočet a skutečný stav APIM" });
+  await teams.getByRole("button", { name: "Seřadit podle Tým", exact: true }).click();
+  await expect(teams.locator("tbody tr").first()).toContainText("team07");
+  await teams.getByRole("button", { name: "Seřadit podle Tým", exact: true }).click();
+  await expect(teams.locator("tbody tr").first()).toContainText("team09");
+  await section.getByText("Číselné hodnoty hodinového grafu", { exact: true }).click();
+  const hours = section.getByRole("table", { name: "Hodinový odhad (USD)" });
+  await hours.getByRole("button", { name: "Seřadit podle team07", exact: true }).click();
+  await expect(hours.locator("tbody tr").first()).toContainText("12,00 USD");
+});
+
+test("ranked charts expose risk, cost drivers and catalog provider icons; keyboard selection handles zero usage", async ({ page }) => {
+  await prepare(page);
+  await page.route("**/api/spend", (route) => route.fulfill({ json: interactiveSpendFixture() }));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Náklady", exact: true }).click();
+  const section = page.locator("#spend");
+  const chart = section.locator(".spend-team-chart");
+  await expect(chart.locator(".spend-rank-row").first()).toContainText("team07");
+  await expect(chart.locator(".spend-rank-row").first()).toContainText("110 %");
+  await expect(chart.locator(".spend-rank-row").first()).toContainText("Přes limit o 10,00 USD");
+  await expect(chart.locator(".spend-rank-row").first().locator(".is-danger")).toHaveCount(1);
+  await expect(section.locator(".spend-insights")).toContainText("APIM přístup je stále aktivní");
+  const drivers = section.locator(".spend-model-chart");
+  await expect(drivers.locator(".spend-model-rank").first()).toContainText("test-model-two");
+  await expect(drivers.locator(".spend-model-rank").first()).toContainText("89,5 %");
+  const models = section.getByRole("table", { name: "Modely · odhad za celé rozpočtové okno" });
+  await expect(models.locator(".provider-openai img")).toHaveAttribute("src", "/provider-openai.svg");
+  await expect(models.locator(".provider-xai")).toContainText("xAI");
+  await expect(models.locator(".spend-model-unknown")).toHaveAttribute("title", "Deployment není v aktuálním katalogu");
+  await chart.getByRole("button", { name: "Filtrovat tým team08", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(section.getByRole("combobox")).toHaveValue("team08");
+  await expect(section.locator(".spend-summary dd").first()).toHaveText("32,00 USD");
+  await section.getByRole("combobox").selectOption("team09");
+  await expect(section.locator(".spend-summary dd").first()).toHaveText("0,00 USD");
+  await expect(section.getByRole("table", { name: "Modely · odhad za celé rozpočtové okno" })).toHaveCount(0);
+  await expect(section.getByText("V rozpočtovém okně zatím není zaznamenaná spotřeba modelů.")).toBeVisible();
+  await expect(section.locator(".spend-chart")).toContainText("není pro tento výběr zaznamenaná spotřeba");
+});
+
 test("dashboard remains readable on desktop/mobile in light/dark with accessible chart data", async ({ page }, testInfo) => {
   await prepare(page);
+  await page.route("**/api/spend", (route) => route.fulfill({ json: interactiveSpendFixture() }));
   for (const width of [1440, 375]) {
     for (const theme of ["light", "dark"]) {
       await page.setViewportSize({ width, height: 900 });
@@ -120,6 +218,10 @@ test("dashboard remains readable on desktop/mobile in light/dark with accessible
       const requiredWidth = await refresh.evaluate((button) => button.scrollWidth);
       expect(box && box.width >= requiredWidth).toBe(true);
       await expect(section.getByRole("img", { name: /Hodinové náklady/ })).toHaveCount(1);
+      await section.locator(".spend-overview-charts").screenshot({ path: testInfo.outputPath(`overview-${width}-${theme}.png`) });
+      await section.locator(".spend-team-chart").getByRole("button", { name: "Filtrovat tým team07", exact: true }).click();
+      await expect(section.getByRole("combobox")).toHaveValue("team07");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await section.getByText("Číselné hodnoty hodinového grafu", { exact: true }).click();
       await expect(section.getByRole("table", { name: "Hodinový odhad (USD)" }).locator("tbody tr")).toHaveCount(25);
       await page.screenshot({ path: testInfo.outputPath(`spend-${width}-${theme}.png`) });
