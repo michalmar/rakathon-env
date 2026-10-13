@@ -21,6 +21,28 @@ Copilot licenci a veřejnost i následné smazání organizace.
 Odkaz je uložený v `src/main.ts`, obrázky v `public/github-enrollment*.png`.
 Při změně či expiraci event odkazu aktualizujte současně URL i QR kód.
 
+Sekce **InterSystems IRIS pro váš tým** předvyplní z přihlášeného UPN
+`teamNN@...` vlastní `rg-teamNN` a název kontejneru. První krok nabízí
+kopírovatelné `az login` s pokynem přihlásit se týmovým účtem. Druhý krok
+zobrazuje dynamický Bash / Azure CLI příkaz `az container create` pro připnutý
+IRIS for Health Community image, s pevným regionem `swedencentral`. Příkazy
+neobsahují osobní Azure konfiguraci, subscription ani kontrolní skript. Přihlášení,
+volbu aktuální subscription, nepoužitý název a heslo řeší účastník.
+Účet mimo tým dostane vysvětlení bez příkazu.
+Portál infrastrukturu sám nevytváří a nevolá Azure API z prohlížeče.
+
+Heslo vzniká na vyžádání přes Web Crypto, je maskované a zůstává pouze
+v paměti stránky (bez storage či odesílání na backend); po obnovení zmizí.
+Zkopírované heslo zůstává ve schránce uživatele. Účastník před spuštěním nastaví
+Bash proměnnou `IRIS_PASSWORD`; příkaz na ni pouze odkazuje a předá její hodnotu
+Azure jako secret volume pro inicializaci IRIS. Heslo se do zobrazeného ani
+kopírovaného příkazu nevkládá a generování hesla není podmínkou kopírování.
+Regenerování v prohlížeči heslo nasazené instance nemění.
+Veřejné porty 52773 (HTTP Management Portal / REST) a 1972 (databázoví klienti)
+jsou pouze pro necitlivá testovací data; nejsou chráněné TLS. Nasazení používá
+2 vCPU / 2 GiB, restart policy Never a nemá persistentní datový disk.
+Návod upozorňuje na ztrátu dat a průběžné účtování nezávislé na blokaci APIM.
+
 Údaje jsou **snapshot**, nikoli živý přehled. Na stránce je datum exportu.
 Exportér pouze čte Azure; nemění infrastrukturu, role, firewall ani autentizaci.
 `public/catalog.json` obsahuje při vývoji načtené modely a metadata souborů,

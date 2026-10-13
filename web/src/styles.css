@@ -122,7 +122,7 @@ h3 {
   align-items: center;
   gap: 28px;
   min-height: 76px;
-  padding: 12px max(24px, calc((100vw - 1180px) / 2));
+  padding: 12px max(24px, calc((100vw - 1440px) / 2));
   border-bottom: 1px solid color-mix(in srgb, var(--cp-border) 84%, transparent);
   background: color-mix(in srgb, var(--cp-bg-elevated) 94%, transparent);
   backdrop-filter: blur(16px);
@@ -530,6 +530,26 @@ h3 {
 .enrollment-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--cp-border); border-radius: 16px; }
 .enrollment-preview figcaption { margin-top: 12px; color: var(--cp-text-muted); font-size: 0.78rem; }
 
+.iris-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.iris-target > *, .iris-step { min-width: 0; }
+.iris-spec { margin: 20px 0; color: var(--cp-text-muted); font-size: 0.82rem; }
+.iris-step + .iris-step { margin-top: 28px; }
+.iris-step h3 { font-size: 1.15rem; letter-spacing: -0.015em; }
+.iris-step > .section-description { max-width: 75ch; }
+.iris-code-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.iris-code-toolbar .section-description { margin: 0; }
+.iris-step .code-example { max-width: 100%; }
+.iris-password-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-top: 18px; }
+.iris-password-label { flex: 1 1 280px; min-width: 0; }
+.iris-password-controls .icon-button { margin-bottom: 3px; }
+.iris-password-controls .button { min-height: 44px; width: auto; flex-shrink: 0; white-space: nowrap; }
+.iris-validation { margin-bottom: 16px; color: var(--cp-danger); font-size: 0.82rem; }
+.iris-validation:empty { display: none; }
+.iris-ports { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 20px; margin: 20px 0 0; font-size: 0.82rem; }
+.iris-ports dt { font-weight: 700; }
+.iris-ports dd { margin: 0; color: var(--cp-text-muted); }
+#iris > .portal-guide > .text-link { margin: 0 18px 18px; }
+
 .file-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .file-count { color: var(--cp-text-muted); font-size: 0.78rem; font-weight: 650; }
 .search-label { max-width: 300px; width: 50%; }
@@ -657,6 +677,11 @@ h3 {
 .empty-state { padding: 26px !important; color: var(--cp-text-muted); text-align: center; }
 .error-screen > h1 { max-width: 20ch; color: var(--cp-text); }
 
+@media (max-width: 1340px) {
+  .sidebar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand access" "navigation navigation"; }
+  .navigation { width: 100%; justify-self: stretch; overflow-x: auto; justify-content: flex-start; }
+}
+
 @media (max-width: 1060px) {
   .sidebar { gap: 16px; padding-inline: 22px; }
   .nav-link { padding-inline: 9px; }
@@ -710,6 +735,10 @@ h3 {
   .file-action span { display: none; }
   .file-action { width: 38px; justify-content: center; padding-inline: 8px; }
   .portal-guide { border-radius: 14px; }
+  .iris-target { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .iris-code-toolbar { align-items: flex-start; flex-direction: column; }
+  .iris-ports { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .iris-ports dd + dt { margin-top: 12px; }
   .enrollment-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .enrollment-qr { width: min(240px, 100%); }
   .footer { flex-direction: column; margin-top: 46px; }

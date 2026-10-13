@@ -1,5 +1,6 @@
 import "./styles.css";
 import { parseUser } from "./auth";
+import { generateIrisPassword, irisDeployment, irisTeam, validContainerName } from "./iris";
 import { blobUrl, loadDataLink } from "./data";
 import { curlExample, loadTeamKey, maskKey, pythonExample, type KeyResult, type TeamKey } from "./key";
 import {
@@ -463,6 +464,157 @@ function githubSection(): HTMLElement {
   return section;
 }
 
+function irisSection(user: string): HTMLElement {
+  const section = element("section", "content-section");
+  section.id = "iris";
+  section.setAttribute("aria-labelledby", "iris-heading");
+  const header = element("div", "section-heading");
+  const title = element("div");
+  const heading = element("h2", "", "InterSystems IRIS pro váš tým");
+  heading.id = "iris-heading";
+  title.append(heading, element("p", "section-description",
+    "Spusťte IRIS for Health Community v Azure Container Instances. Příkaz se předvyplní podle přihlášeného týmu."));
+  header.append(title);
+  section.append(header);
+  const matchedTeam = irisTeam(user);
+  if (!matchedTeam) {
+    section.append(keyMessage("Návod se předvyplní po přihlášení týmovým Azure účtem teamNN@… . U tohoto účtu nelze určit tým ani jeho resource group; přihlaste se týmovým účtem. V lokálním náhledu není týmová identita dostupná."));
+    return section;
+  }
+  const team = matchedTeam;
+
+  const target = element("div", "iris-target");
+  target.append(copyField("Resource group vašeho týmu", team.resourceGroup, "Kopírovat resource group IRIS"));
+  const nameLabel = element("label", "iris-name-label");
+  nameLabel.append(element("span", "field-label", "Název nového kontejneru"));
+  const name = element("input", "search-input");
+  name.type = "text";
+  name.value = team.containerName;
+  name.maxLength = 63;
+  name.autocomplete = "off";
+  name.spellcheck = false;
+  name.setAttribute("aria-describedby", "iris-name-help");
+  nameLabel.append(name);
+  const help = element("p", "section-description", "Pro další instanci změňte název. Před spuštěním sami ověřte, že název není použitý.");
+  help.id = "iris-name-help";
+  nameLabel.append(help);
+  target.append(nameLabel);
+  section.append(target, element("p", "iris-spec", "2 vCPU · 2 GiB RAM · Linux · Sweden Central · veřejné TCP porty 52773 a 1972"));
+  const warning = element("div", "auth-notice");
+  warning.append(icon("zone"), element("p", "",
+    "Pouze pro hackathon a necitlivá testovací data: oba porty jsou veřejné, web používá HTTP bez TLS. Nevkládejte skutečná zdravotní ani osobní data. Úložiště není trvalé; při restartu nebo smazání můžete přijít o data. Běžící kontejner se účtuje do Azure rozpočtu týmu, nezastaví se sám a blokace API klíče jej nevypne."));
+  section.append(warning);
+
+  const login = element("div", "iris-step");
+  login.append(element("h3", "", "1. Přihlaste se do Azure CLI"), element("p", "section-description",
+    `Spusťte v Bash a v prohlížeči se přihlaste jako ${team.user}. Pokud CLI nabídne výběr subscription, vyberte týmovou.`));
+  const loginToolbar = element("div", "iris-code-toolbar");
+  const copyLogin = element("button", "button primary-button", "Kopírovat přihlášení IRIS");
+  copyLogin.type = "button";
+  copyLogin.prepend(icon("copy"));
+  copyLogin.addEventListener("click", () => {
+    copy("az login", "přihlášení IRIS").catch(() => notify("Kopírování příkazu se nezdařilo. Označte kód a zkopírujte jej ručně.", true));
+  });
+  loginToolbar.append(element("span", "section-description", "Bash · Azure CLI"), copyLogin);
+  const loginCommand = element("pre", "code-example", "az login");
+  loginCommand.tabIndex = 0;
+  loginCommand.setAttribute("aria-label", "přihlášení IRIS");
+  login.append(loginToolbar, loginCommand);
+
+  const deploy = element("div", "iris-step");
+  deploy.append(element("h3", "", "2. Spusťte kontejner"), element("p", "section-description",
+    "Nastavte proměnnou IRIS_PASSWORD na své nebo níže vygenerované heslo. Příkaz přihlášení, existenci kontejneru ani heslo nekontroluje."));
+  const passwordControls = element("div", "iris-password-controls");
+  const generate = element("button", "button file-action", "Vygenerovat heslo");
+  generate.type = "button";
+  const passwordLabel = element("label", "iris-password-label");
+  passwordLabel.append(element("span", "field-label", "Heslo IRIS pro _SYSTEM"));
+  const password = element("input", "search-input");
+  password.type = "password";
+  password.readOnly = true;
+  password.autocomplete = "off";
+  password.spellcheck = false;
+  password.placeholder = "Vygenerujte heslo";
+  password.setAttribute("aria-describedby", "iris-password-help");
+  passwordLabel.append(password);
+  const reveal = action("Zobrazit heslo IRIS", "eye", () => {
+    const show = password.type === "password";
+    password.type = show ? "text" : "password";
+    reveal.setAttribute("aria-label", show ? "Skrýt heslo IRIS" : "Zobrazit heslo IRIS");
+    reveal.title = reveal.getAttribute("aria-label") ?? "";
+  });
+  const copyPassword = action("Kopírovat heslo IRIS", "copy", () => {
+    copy(password.value, "Heslo IRIS").catch(() => notify("Kopírování hesla se nezdařilo. Heslo zobrazte a zkopírujte jej ručně.", true));
+  });
+  reveal.disabled = true;
+  copyPassword.disabled = true;
+  generate.addEventListener("click", () => {
+    try {
+      password.value = generateIrisPassword();
+      password.type = "password";
+      reveal.setAttribute("aria-label", "Zobrazit heslo IRIS");
+      reveal.title = "Zobrazit heslo IRIS";
+      reveal.disabled = false;
+      copyPassword.disabled = false;
+      generate.textContent = "Vygenerovat jiné heslo";
+      notify("Nové heslo IRIS je připravené. U již nasazeného kontejneru se heslo nezměnilo.");
+    } catch {
+      notify("Bezpečné generování hesla není dostupné. Otevřete portál přes HTTPS v aktuálním prohlížeči.", true);
+    }
+  });
+  passwordControls.append(passwordLabel, reveal, copyPassword, generate);
+  const passwordHelp = element("p", "section-description",
+    "Heslo generuje Web Crypto pouze v paměti této stránky. Portál je neukládá ani neposílá na server; po obnovení stránky zmizí. Kopie zůstane ve vaší schránce. CLI je předá Azure jako secret volume pro inicializaci IRIS. Bez --debug / set -x; heslo nesdílejte. Nové generování nemění heslo nasazené instance.");
+  passwordHelp.id = "iris-password-help";
+  deploy.append(passwordControls, passwordHelp);
+  const toolbar = element("div", "iris-code-toolbar");
+  const copyCommand = element("button", "button primary-button", "Kopírovat nasazení IRIS");
+  copyCommand.type = "button";
+  copyCommand.prepend(icon("copy"));
+  const command = element("pre", "code-example");
+  command.tabIndex = 0;
+  command.setAttribute("aria-label", "nasazení IRIS");
+  copyCommand.addEventListener("click", () => {
+    copy(irisDeployment(team, name.value), "nasazení IRIS").catch(() => notify("Kopírování příkazu se nezdařilo. Označte kód a zkopírujte jej ručně.", true));
+  });
+  toolbar.append(element("span", "section-description", "Bash · Azure CLI"), copyCommand);
+  deploy.append(toolbar, command, element("p", "section-description",
+    "Stažení image a start mohou trvat několik minut. Ve výstupu nasazení najdete veřejnou IP v ipAddress.ip; stav a logy můžete ověřit v Azure Portal. Když kontejner nepotřebujete, zastavte jej nebo smažte."));
+  const ports = element("dl", "iris-ports");
+  for (const [label, text] of [
+    ["52773 / TCP", "Management Portal: http://<IP>:52773/csp/sys/%25CSP.Portal.Home.zen. Uživatel _SYSTEM, heslo z IRIS_PASSWORD; také nakonfigurované REST/FHIR aplikace."],
+    ["1972 / TCP", "Databázoví klienti JDBC, ODBC nebo Python. Host = veřejná IP, namespace USER, uživatel _SYSTEM, heslo z IRIS_PASSWORD. Není to webová adresa."],
+  ]) ports.append(element("dt", "", label), element("dd", "", text));
+  deploy.append(ports);
+  const image = element("details", "portal-guide");
+  image.append(element("summary", "", "Použitý image a dokumentace"),
+    externalLink("InterSystems IRIS for Health Community", "https://hub.docker.com/r/intersystems/irishealth-community"),
+    externalLink("Azure Container Instances: secret volume", "https://learn.microsoft.com/azure/container-instances/container-instances-volume-secret"));
+  const validation = element("p", "iris-validation");
+  validation.id = "iris-validation";
+  validation.setAttribute("role", "status");
+  name.setAttribute("aria-describedby", "iris-name-help iris-validation");
+  function refresh(): void {
+    const valid = validContainerName(name.value);
+    name.setAttribute("aria-invalid", String(!valid));
+    validation.textContent = valid ? "" : "Název musí mít 1–63 znaků: malá písmena, čísla nebo pomlčky; začíná písmenem a končí písmenem či číslem.";
+    copyCommand.disabled = !valid;
+    command.textContent = valid ? irisDeployment(team, name.value) : "Opravte název kontejneru pro zobrazení přesného příkazu.";
+  }
+  function hidePassword(): void {
+    password.type = "password";
+    reveal.setAttribute("aria-label", "Zobrazit heslo IRIS");
+    reveal.title = "Zobrazit heslo IRIS";
+  }
+  window.addEventListener("blur", hidePassword);
+  window.addEventListener("pagehide", () => { password.value = ""; hidePassword(); refresh(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) hidePassword(); });
+  name.addEventListener("input", refresh);
+  refresh();
+  section.append(validation, login, deploy, image);
+  return section;
+}
+
 function render(catalog: Catalog, user: string): void {
   root.replaceChildren();
   root.className = "app-layout";
@@ -484,7 +636,10 @@ function render(catalog: Catalog, user: string): void {
   const githubLink = element("a", "nav-link", "GitHub");
   githubLink.href = "#github";
   githubLink.prepend(icon("code"));
-  nav.append(keyLink, modelsLink, dataLink, githubLink);
+  const irisLink = element("a", "nav-link", "IRIS");
+  irisLink.href = "#iris";
+  irisLink.prepend(icon("models"));
+  nav.append(keyLink, modelsLink, dataLink, irisLink, githubLink);
   sidebar.append(nav);
   const access = element("div", "sidebar-access");
   access.append(icon("lock"), element("p", "", "Jen pro Rakathon tenant"));
@@ -545,7 +700,7 @@ function render(catalog: Catalog, user: string): void {
   cards.append(...catalog.foundry.models.map((model) => modelCard(model, catalog)));
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
-  main.append(keySection(), models, storageSection(catalog), githubSection());
+  main.append(keySection(), models, storageSection(catalog), irisSection(user), githubSection());
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Privátní data · krátkodobé odkazy pouze pro přihlášené týmy"));

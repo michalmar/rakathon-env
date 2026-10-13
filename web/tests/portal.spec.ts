@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { environment } from "../src/catalog";
+import { irisImage } from "../src/iris";
 import { catalogFixture, userFixture } from "./fixtures";
 
 const teamKeyFixture = { team: "team07", key: "FAKE-KEY", state: "active", baseUrl: `https://${environment.gatewayService}.azure-api.net/openai/v1` };
@@ -161,6 +162,139 @@ test("GitHub registrace je čitelná na mobilu v obou tématech", async ({ page 
     await expect(page.locator(".enrollment-qr img")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
+});
+
+function irisUser() {
+  const user = userFixture();
+  user.clientPrincipal.userDetails = "team07@example.onmicrosoft.com";
+  return user;
+}
+
+test("IRIS předvyplní tým a přesné příkazy bez ukládání nebo odesílání hesla", async ({ page }) => {
+  await prepare(page, catalogFixture(), irisUser());
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url() + (request.postData() ?? "")));
+  await page.goto("/");
+  await page.getByRole("navigation").getByRole("link", { name: "IRIS", exact: true }).click();
+  await expect(page).toHaveURL(/#iris$/);
+  const section = page.locator("#iris");
+  const password = section.getByLabel("Heslo IRIS pro _SYSTEM", { exact: true });
+  const deploy = section.getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true });
+  await expect(section.getByText("rg-team07", { exact: true })).toBeVisible();
+  await expect(section.getByLabel("Název nového kontejneru")).toHaveValue("aci-irishealth-team07");
+  await expect(password).toHaveValue("");
+  await expect(deploy).toBeEnabled();
+  await expect(section.locator("pre")).toHaveCount(2);
+  await section.getByRole("button", { name: "Vygenerovat heslo", exact: true }).click();
+  const secret = await password.inputValue();
+  expect(secret).toMatch(/^Ir1![A-Za-z0-9_-]{28}$/);
+  await expect(password).toHaveAttribute("type", "password");
+  await section.getByRole("button", { name: "Kopírovat heslo IRIS", exact: true }).click();
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(secret);
+  await section.getByRole("button", { name: "Zobrazit heslo IRIS", exact: true }).click();
+  await expect(password).toHaveAttribute("type", "text");
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(password).toHaveAttribute("type", "password");
+  await deploy.click();
+  const command = await page.evaluate(() => Reflect.get(window, "testClipboard"));
+  expect(command).toContain('--resource-group "rg-team07"');
+  expect(command).toContain('--name "aci-irishealth-team07"');
+  expect(command).toContain("--location swedencentral");
+  expect(command).toContain(irisImage);
+  expect(command).toContain('--secrets "iris-password=$IRIS_PASSWORD"');
+  expect(command).toMatch(/^az container create /);
+  expect(command).not.toMatch(/AZURE_CONFIG_DIR|azure-rak|--subscription|az login|read |if |set |unset /);
+  expect(command).not.toContain(secret);
+  expect(await section.locator("pre").allTextContents()).not.toEqual(expect.arrayContaining([expect.stringContaining(secret)]));
+  const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
+  expect(storage).not.toContain(secret);
+  expect(requests.join("\n")).not.toContain(secret);
+  await section.getByRole("button", { name: "Vygenerovat jiné heslo", exact: true }).click();
+  expect(await password.inputValue()).not.toBe(secret);
+  await page.reload();
+  await expect(page.locator("#iris").getByLabel("Heslo IRIS pro _SYSTEM", { exact: true })).toHaveValue("");
+});
+
+test("IRIS aktualizuje jediný create příkaz a odmítne neplatný název", async ({ page }) => {
+  await prepare(page, catalogFixture(), irisUser());
+  await page.goto("/#iris");
+  const section = page.locator("#iris");
+  const name = section.getByLabel("Název nového kontejneru");
+  await name.fill("iris-demo-07");
+  await section.getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true }).click();
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toContain('--name "iris-demo-07"');
+  await expect(section.getByRole("button", { name: "Kopírovat přihlášení IRIS" })).toBeEnabled();
+  await expect(section.getByText("Logy, shell, zastavení a úklid", { exact: true })).toHaveCount(0);
+  await name.fill("iris;echo bad");
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  await expect(section.getByRole("status")).toContainText("Název musí");
+  await expect(section.getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true })).toBeDisabled();
+  await expect(section.getByRole("button", { name: "Kopírovat přihlášení IRIS" })).toBeEnabled();
+  await name.fill("iris-fixed");
+  await expect(name).toHaveAttribute("aria-invalid", "false");
+  await expect(section.getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true })).toBeEnabled();
+});
+
+test("IRIS krok 1 kopíruje pouze jednoduché az login", async ({ page }) => {
+  await prepare(page, catalogFixture(), irisUser());
+  await page.goto("/#iris");
+  const section = page.locator("#iris");
+  await expect(section.getByRole("heading", { name: "1. Přihlaste se do Azure CLI" })).toBeVisible();
+  await expect(section.getByRole("heading", { name: "2. Spusťte kontejner" })).toBeVisible();
+  await expect(section.getByLabel("přihlášení IRIS", { exact: true })).toHaveText("az login");
+  await section.getByRole("button", { name: "Kopírovat přihlášení IRIS", exact: true }).click();
+  expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe("az login");
+});
+
+test("IRIS používá dynamicky přihlášený tým, ne vzorový team07", async ({ page }) => {
+  const user = irisUser();
+  user.clientPrincipal.userDetails = "team19@example.onmicrosoft.com";
+  await prepare(page, catalogFixture(), user);
+  await page.goto("/#iris");
+  const section = page.locator("#iris");
+  await expect(section.getByText("rg-team19", { exact: true })).toBeVisible();
+  await expect(section.getByLabel("Název nového kontejneru")).toHaveValue("aci-irishealth-team19");
+  await section.getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true }).click();
+  const command = await page.evaluate(() => Reflect.get(window, "testClipboard"));
+  expect(command).toContain('--resource-group "rg-team19"');
+  expect(command).toContain('--name "aci-irishealth-team19"');
+  expect(command).not.toContain("team07");
+});
+
+test("IRIS mimo tým nevymýšlí resource group ani příkazy", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/#iris");
+  await expect(page.locator("#iris").getByText("U tohoto účtu nelze určit tým", { exact: false })).toBeVisible();
+  await expect(page.locator("#iris pre")).toHaveCount(0);
+  await expect(page.locator("#iris input")).toHaveCount(0);
+});
+
+test("IRIS je čitelný na desktopu i mobilu v obou tématech", async ({ page }) => {
+  await prepare(page, catalogFixture(), irisUser());
+  for (const width of [1440, 1280, 1024, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const theme of ["light", "dark"]) {
+      await page.goto(`/?scoutTheme=${theme}#iris`);
+      await page.getByRole("navigation").getByRole("link", { name: "IRIS", exact: true }).click();
+      await expect(page.locator("#iris").getByRole("heading", { level: 2 })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const brand = await page.locator(".brand").boundingBox();
+      const nav = await page.getByRole("navigation").boundingBox();
+      expect(brand && nav && (brand.x + brand.width <= nav.x || brand.y + brand.height <= nav.y)).toBe(true);
+    }
+  }
+});
+
+test("IRIS chybu schránky viditelně oznámí", async ({ page }) => {
+  await prepare(page, catalogFixture(), irisUser());
+  await page.goto("/#iris");
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async () => { throw new Error("clipboard denied"); } },
+    });
+  });
+  await page.locator("#iris").getByRole("button", { name: "Kopírovat nasazení IRIS", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Kopírování příkazu se nezdařilo");
 });
 
 test("klíč týmu je maskovaný, lze ho zobrazit a zkopírovat; statický katalog klíče nenačítá", async ({ page }) => {

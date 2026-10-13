@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-default-accent="blue">
+<html lang="en" data-default-accent="blue" data-default-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -174,6 +174,7 @@
 <link rel="stylesheet" href="assets/article.css">
 <link rel="stylesheet" href="assets/slides.css">
 <link rel="stylesheet" href="assets/sheet.css">
+<link rel="stylesheet" href="assets/newcomer-guide.css">
 <script src="assets/article.js" defer></script>
 <script src="assets/slides.js" defer></script>
 <script src="assets/sheet.js" defer></script>
@@ -208,6 +209,24 @@ SOFTWARE.
 <!-- 4. Controls. Keep only the views this document offers: remove Slides when
      it is reading-only; add the Sheet control with a companion sheet (11).
      PDF prints whichever view is on screen. -->
+<nav class="guide-workspace" aria-label="Guide navigation">
+  <a class="guide-brand" href="#opening" aria-label="Rakathon supported by VZP and Microsoft, guide start">
+    <img class="guide-logo-vzp" src="assets/images/vzp-logo.png" width="260" height="55" alt="VZP logo">
+    <span class="guide-brand-divider" aria-hidden="true"></span>
+    <img class="guide-logo-microsoft" src="assets/images/microsoft-logo.png" width="216" height="46" alt="Microsoft">
+  </a>
+  <div class="guide-navigation">
+    <a href="#ch-access">Team access</a>
+    <a href="#ch-build">Models &amp; data</a>
+    <a href="#ch-support">Help</a>
+  </div>
+  <a class="guide-azure" href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer" aria-label="Azure Portal (opens a new tab)">
+    <img src="assets/images/azure-logo.svg" width="24" height="24" alt="Azure logo">
+    Azure Portal
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg>
+  </a>
+</nav>
+
 <div class="controls" role="group" aria-label="Article controls">
   <button type="button" class="ctrl" data-action="expand-all">Expand all</button>
   <button type="button" class="ctrl" data-action="collapse-all">Collapse all</button>
@@ -223,15 +242,27 @@ SOFTWARE.
   <!-- 5. Header -->
   <header class="doc-header" id="opening">
     <div class="slide-content slide-content--title">
+      <div class="guide-slide-brand" aria-hidden="true">
+        <img class="guide-logo-vzp" src="assets/images/vzp-logo.png" width="260" height="55" alt="VZP logo">
+        <span class="guide-brand-divider"></span>
+        <img class="guide-logo-microsoft" src="assets/images/microsoft-logo.png" width="216" height="46" alt="Microsoft logo">
+      </div>
       <p class="slide-eyebrow">Rakathon / Team onboarding</p>
       <h2 class="slide-title">Sign in.<br><em>Start building.</em></h2>
       <p class="slide-lead">Your team account connects you to models, challenge data, and your workspace.</p>
     </div>
-    <p class="eyebrow">Rakathon / Team onboarding</p>
-    <h1>Sign in and start building</h1>
-    <p class="subtitle">Get your team API key, make a first model call, and find your challenge data and Azure workspace.</p>
-    <p>Participant portal: <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/">https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/</a></p>
-    <p class="meta">Configuration reviewed <time datetime="2026-10-12">12 October 2026</time>. Not a live inventory.</p>
+    <div class="guide-hero-content">
+      <h1>Sign in and start building</h1>
+      <p class="subtitle">Get your team API key, make a first model call, and find your challenge data and Azure workspace.</p>
+      <p class="guide-portal-url">Participant portal: <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/">https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/</a></p>
+      <p class="meta">Configuration reviewed <time datetime="2026-10-12">12 October 2026</time>. Not a live inventory.</p>
+    </div>
+    <div class="guide-hero-qr">
+      <a href="https://yellow-mushroom-06f2eb80f.2.azurestaticapps.net/" aria-label="Open participant portal">
+        <img src="assets/images/participant-portal-qr.png" width="450" height="450" alt="QR code for the participant portal">
+      </a>
+      <p>Scan to open the participant portal</p>
+    </div>
   </header>
 
   <!-- 6. Optional navigation: add only links to material that exists. -->
