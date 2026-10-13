@@ -129,11 +129,11 @@ test("Azure Portal a GitHub registrace mají bezpečné odkazy a lokální obrá
   await expect(azure).toHaveAttribute("rel", "noopener noreferrer");
   await expect(azure.locator("img")).toHaveAttribute("src", "/azure-logo.svg");
 
-  await page.getByRole("navigation", { name: "Sekce katalogu" }).getByRole("link", { name: "GitHub", exact: true }).click();
+  await page.getByRole("navigation", { name: "Sekce katalogu" }).getByRole("link", { name: "GitHub Copilot", exact: true }).click();
   await expect(page).toHaveURL(/#github$/);
   const section = page.locator("#github");
-  await expect(section.getByRole("heading", { name: "GitHub pro hackathon" })).toBeVisible();
-  const enrollment = section.getByRole("link", { name: "Registrovat se do GitHub hackathonu", exact: false });
+  await expect(section.getByRole("heading", { name: "GitHub Copilot pro hackathon" })).toBeVisible();
+  const enrollment = section.getByRole("link", { name: "Registrovat se pro GitHub Copilot", exact: false });
   const href = await enrollment.getAttribute("href");
   if (href === null) throw new Error("Chybí registrační odkaz.");
   const url = new URL(href);
@@ -158,8 +158,56 @@ test("GitHub registrace je čitelná na mobilu v obou tématech", async ({ page 
   for (const theme of ["light", "dark"]) {
     await page.goto(`/?scoutTheme=${theme}#github`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-    await expect(page.locator("#github").getByRole("heading")).toBeVisible();
+    await expect(page.locator("#github").getByRole("heading", { level: 2 })).toBeVisible();
     await expect(page.locator(".enrollment-qr img")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
+test("GitHub Copilot obsahuje zdroje organizace, datum smazání a logo v menu", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/#github");
+  await expect(page.locator(".github-nav-logo")).toHaveAttribute("src", "/github-logo.svg");
+  const section = page.locator("#github");
+  await expect(section.getByRole("heading", { name: "GitHub Copilot pro Rakathon 2026" })).toHaveCount(0);
+  await expect(section.getByText("19. října 2026", { exact: false })).toBeVisible();
+  await expect(section.getByText("Privátní organizace", { exact: false })).toHaveCount(0);
+  await expect(section.getByRole("link", { name: "Organizace Rakathon 2026", exact: false })).toHaveCount(0);
+  await expect(section.getByRole("link", { name: "GitHub Skills", exact: false })).toHaveAttribute("href", "https://skills.github.com/");
+  await expect(section.locator(".resource-links a")).toHaveCount(5);
+  for (const link of await section.locator(".resource-links a").all()) {
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
+});
+
+test("Examples jsou sbalené, kopírují přesný kód a fungují i na mobilu", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/");
+  await page.getByRole("navigation").getByRole("link", { name: "Examples", exact: true }).click();
+  await expect(page).toHaveURL(/#examples$/);
+  const section = page.locator("#examples");
+  const guides = section.locator("details");
+  await expect(guides).toHaveCount(4);
+  for (const guide of await guides.all()) {
+    await expect(guide).not.toHaveAttribute("open", "");
+    await guide.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(guide).toHaveAttribute("open", "");
+    for (const pre of await guide.locator("pre").all()) {
+      const label = await pre.getAttribute("aria-label");
+      await guide.getByRole("button", { name: `Kopírovat ${label}`, exact: true }).click();
+      expect(await page.evaluate(() => Reflect.get(window, "testClipboard"))).toBe(await pre.textContent());
+    }
+  }
+  await expect(section.getByLabel("hello.py", { exact: true })).toContainText("client.responses.create(");
+  await expect(section.getByLabel("hello.py", { exact: true })).toContainText(catalogFixture().gateway.endpoint);
+  await expect(section.getByLabel("SWA nasazení (Bash)")).toContainText("az staticwebapp create");
+  await expect(section.getByLabel("ACA job (Bash)")).toContainText("--trigger-type Manual");
+  for (const theme of ["light", "dark"]) {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(`/?scoutTheme=${theme}#examples`);
+    for (const guide of await guides.all()) await guide.locator("summary").click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
 });

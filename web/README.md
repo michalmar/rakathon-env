@@ -13,13 +13,27 @@ zobrazuje seznam souborů v privátním containeru `data`. Každý soubor lze p�
 stáhnout nebo zkopírovat jeho stabilní Blob URL pro použití v projektu.
 
 Tlačítko **Azure Portal** s logem Azure otevře `https://portal.azure.com/`
-v nové kartě. Sekce **GitHub pro hackathon** na stejné stránce obsahuje návod,
+v nové kartě. Sekce **GitHub Copilot pro hackathon** na stejné stránce obsahuje návod,
 tlačítko pro registraci, QR kód s úplným odkazem včetně event tokenu a náhled
 registrační stránky. Účastníci použijí osobní GitHub.com účet, nikoli Azure
-účet; EMU účty nejsou podporované. Podmínky registrace zahrnují dopad na
-Copilot licenci a veřejnost i následné smazání organizace.
+účet; EMU účty nejsou podporované. Podmínky registrace zahrnují dopad na Copilot licenci. Sekce GitHub Copilot
+obsahuje zdroje z profilu privátní organizace
+`hackathon-green-snail-77/.github-private/profile/README.md`,
+GitHub Skills a návody pro IDE a prompt engineering. Upozorňuje na odstranění
+organizace a jejího obsahu **19. října 2026**. Menu uvádí **GitHub Copilot**
+a používá lokální GitHub logo.
 Odkaz je uložený v `src/main.ts`, obrázky v `public/github-enrollment*.png`.
 Při změně či expiraci event odkazu aktualizujte současně URL i QR kód.
+
+Sekce **Examples** nabízí sbalené návody s kopírováním kódu: přihlášení Azure
+CLI a výběr subscription, Python Hello world přes Responses API a týmový APIM
+klíč, publikování vlastního statického frontendu do SWA a týmové ACA prostředí
+pro web/backend a jednorázový job. ACA Sandbox zde znamená testovací Container
+Apps prostředí v týmové resource group, nikoli bezplatnou sandbox službu.
+Návody používají zástupné hodnoty, nenahrávají klíče a nic samy nenasazují.
+Python ukázka vyžaduje GPT deployment podporující Responses API; ne každý model
+v katalogu tento endpoint podporuje. SWA a ACA návody upozorňují na veřejné
+endpointy, autentizaci, náklady a zacházení s tajemstvími.
 
 Sekce **InterSystems IRIS pro váš tým** předvyplní z přihlášeného UPN
 `teamNN@...` vlastní `rg-teamNN` a název kontejneru. První krok nabízí

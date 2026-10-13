@@ -66,3 +66,24 @@ export function pythonExample(baseUrl: string): string {
     "print(reply.choices[0].message.content)",
   ].join("\n");
 }
+
+export function pythonResponsesExample(baseUrl: string): string {
+  const root = baseUrl.replace(/\/+$/, "");
+  return [
+    "import os",
+    "from openai import OpenAI",
+    "",
+    "client = OpenAI(",
+    `    base_url="${root}/",`,
+    '    api_key="unused",',
+    '    default_headers={"api-key": os.environ["API_KEY"]},',
+    ")",
+    "",
+    "response = client.responses.create(",
+    '    model=os.environ["MODEL_DEPLOYMENT"],',
+    '    input="Řekni ahoj účastníkům Rakathonu jednou větou.",',
+    "    store=False,",
+    ")",
+    "print(response.output_text)",
+  ].join("\n");
+}

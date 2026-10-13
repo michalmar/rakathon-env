@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseUser } from "../src/auth";
 import { environment, formatSize, parseCatalog } from "../src/catalog";
-import { curlExample, maskKey, parseTeamKey, loadTeamKey } from "../src/key";
+import { curlExample, maskKey, parseTeamKey, loadTeamKey, pythonResponsesExample } from "../src/key";
 import { catalogFixture, userFixture } from "./fixtures";
 
 describe("statický katalog", () => {
@@ -119,5 +119,16 @@ describe("klíč týmu", () => {
     expect(maskKey("abc")).not.toContain("abc");
     expect(maskKey("x".repeat(100))).toHaveLength(32);
     expect(curlExample(valid.baseUrl)).toContain("$API_KEY");
+  });
+
+  it("Responses ukázka používá gateway, týmový klíč z prostředí a output_text", () => {
+    const code = pythonResponsesExample(`${valid.baseUrl}///`);
+    expect(code).toContain(`base_url="${valid.baseUrl}/"`);
+    expect(code).toContain('default_headers={"api-key": os.environ["API_KEY"]}');
+    expect(code).toContain('model=os.environ["MODEL_DEPLOYMENT"]');
+    expect(code).toContain("client.responses.create(");
+    expect(code).toContain("store=False");
+    expect(code).toContain("print(response.output_text)");
+    expect(code).not.toContain(valid.key);
   });
 });

@@ -2,7 +2,7 @@ import "./styles.css";
 import { parseUser } from "./auth";
 import { generateIrisPassword, irisDeployment, irisTeam, validContainerName } from "./iris";
 import { blobUrl, loadDataLink } from "./data";
-import { curlExample, loadTeamKey, maskKey, pythonExample, type KeyResult, type TeamKey } from "./key";
+import { curlExample, loadTeamKey, maskKey, pythonExample, pythonResponsesExample, type KeyResult, type TeamKey } from "./key";
 import {
   environment, formatDate, formatSize, parseCatalog,
   type Catalog, type DataFile, type ModelDeployment,
@@ -412,16 +412,16 @@ function githubSection(): HTMLElement {
   section.setAttribute("aria-labelledby", "github-heading");
   const header = element("div", "section-heading");
   const title = element("div");
-  const heading = element("h2", "", "GitHub pro hackathon");
+  const heading = element("h2", "", "GitHub Copilot pro hackathon");
   heading.id = "github-heading";
   title.append(heading, element("p", "section-description",
-    "Připojte svůj účet GitHub.com k organizaci akce. Registrace je oddělená od přihlášení do Azure."));
+    "Začněte s GitHub Copilotem na Rakathonu: připojte svůj osobní účet GitHub.com k organizaci akce a využijte návody níže. Registrace je oddělená od přihlášení do Azure."));
   header.append(title);
   section.append(header);
 
   const layout = element("div", "enrollment-layout");
   const instructions = element("div", "enrollment-instructions");
-  instructions.append(externalLink("Registrovat se do GitHub hackathonu", githubEnrollmentUrl, true));
+  instructions.append(externalLink("Registrovat se pro GitHub Copilot", githubEnrollmentUrl, true));
   const steps = element("ol", "guide-steps enrollment-steps");
   steps.append(
     element("li", "", "Otevřete registrační stránku tlačítkem nebo naskenujte QR kód. Ověřte, že se zobrazuje akce Rakathon 2026."),
@@ -437,18 +437,37 @@ function githubSection(): HTMLElement {
   qrLink.replaceChildren();
   const qrImage = element("img");
   qrImage.src = "/github-enrollment-qr.png";
-  qrImage.alt = "QR kód s úplným registračním odkazem na GitHub hackathon Rakathon 2026";
+  qrImage.alt = "QR kód pro registraci ke GitHub Copilotu na Rakathonu 2026";
   qrImage.width = 600;
   qrImage.height = 600;
   qrLink.append(qrImage);
-  qr.append(qrLink, element("figcaption", "", "Naskenujte pro registraci"));
+  qr.append(qrLink, element("figcaption", "", "Naskenujte pro registraci ke GitHub Copilotu"));
   layout.append(instructions, qr);
   section.append(layout);
 
   const warning = element("div", "auth-notice enrollment-warning");
   warning.append(icon("zone"), element("p", "",
-    "Podmínky registrace upozorňují na zrušení stávajícího individuálního předplatného Copilotu při připojení; zvažte samostatný GitHub účet pro akci. Organizace je veřejná a po akci se smaže: nezveřejňujte citlivá data ani klíče a včas si uložte svou práci. U firemní licence postupujte podle pokynů k nastavení Usage billed to na registrační stránce."));
+    "Podmínky registrace upozorňují na zrušení stávajícího individuálního předplatného Copilotu při připojení; zvažte samostatný GitHub účet pro akci. Nezveřejňujte citlivá data ani klíče a před smazáním organizace si uložte svou práci. U firemní licence postupujte podle pokynů k nastavení Usage billed to na registrační stránce."));
   section.append(warning);
+
+  const copilot = element("div", "copilot-resources");
+  const resources = element("ul", "resource-links");
+  for (const [label, href] of [
+    ["GitHub Skills", "https://skills.github.com/"],
+    ["Getting started with GitHub Copilot", "https://docs.github.com/copilot/get-started/quickstart"],
+    ["Using GitHub Copilot in your IDE", "https://docs.github.com/copilot/using-github-copilot/getting-code-suggestions-in-your-ide-with-github-copilot"],
+    ["Prompt engineering for GitHub Copilot Chat", "https://docs.github.com/copilot/using-github-copilot/copilot-chat/prompt-engineering-for-copilot-chat"],
+    ["Informace k Azure", "https://aka.ms/rackathon"],
+  ]) {
+    const item = element("li");
+    item.append(externalLink(label!, href!));
+    resources.append(item);
+  }
+  const expiry = element("div", "auth-notice enrollment-warning");
+  expiry.append(icon("zone"), element("p", "",
+    "Toto je dočasné prostředí. Organizace a veškerý její obsah budou 19. října 2026 odstraněny. Vše, co si chcete zachovat, si před tímto datem uložte mimo tuto organizaci."));
+  copilot.append(resources, expiry);
+  section.append(copilot);
   const preview = element("figure", "enrollment-preview");
   const screenshot = element("img");
   screenshot.src = "/github-enrollment.png";
@@ -461,6 +480,141 @@ function githubSection(): HTMLElement {
   screenshotLink.replaceChildren(screenshot);
   preview.append(screenshotLink, element("figcaption", "", "Náhled registrační stránky; kliknutím otevřete plnou velikost. Aktuální stav akce a podmínky ověřte po otevření registračního odkazu."));
   section.append(preview);
+  return section;
+}
+
+function examplesSection(catalog: Catalog): HTMLElement {
+  const section = element("section", "content-section");
+  section.id = "examples";
+  section.setAttribute("aria-labelledby", "examples-heading");
+  const heading = element("h2", "", "Examples");
+  heading.id = "examples-heading";
+  const header = element("div", "section-heading");
+  const title = element("div");
+  title.append(heading, element("p", "section-description",
+    "Praktické příklady pro první kroky. Rozbalte návod, upravte zástupné hodnoty a spusťte kód ve vlastním terminálu; portál nic nenasazuje."));
+  header.append(title);
+  section.append(header);
+
+  function guide(label: string, description: string): HTMLElement {
+    const details = element("details", "portal-guide example-guide");
+    details.append(element("summary", "", label));
+    const body = element("div", "example-body");
+    body.append(element("p", "section-description", description));
+    details.append(body);
+    section.append(details);
+    return body;
+  }
+  function code(body: HTMLElement, label: string, value: string): void {
+    const toolbar = element("div", "iris-code-toolbar");
+    const button = element("button", "button file-action", `Kopírovat ${label}`);
+    button.type = "button";
+    button.prepend(icon("copy"));
+    button.addEventListener("click", () => {
+      copy(value, label).catch(() => notify("Kopírování příkladu se nezdařilo. Označte kód a zkopírujte jej ručně.", true));
+    });
+    toolbar.append(element("span", "field-label", label), button);
+    const pre = element("pre", "code-example");
+    pre.tabIndex = 0;
+    pre.setAttribute("aria-label", label);
+    pre.append(element("code", "", value));
+    body.append(toolbar, pre);
+  }
+
+  const cli = guide("Azure CLI: přihlášení a výběr subscription",
+    "Nainstalujte Azure CLI. V Bash nahraďte <tenant-id>, <subscription-id> a NN údaji svého týmu. Přihlaste se týmovým Azure účtem, nikoli osobním GitHub účtem. Další Azure příklady předpokládají toto přihlášení a vybranou subscription.");
+  code(cli, "Azure CLI", [
+    'az login --tenant "<tenant-id>"',
+    'az account list --query "[].{Name:name,Id:id,Default:isDefault}" --output table',
+    'az account set --subscription "<subscription-id>"',
+    'az account show --query "{Name:name,Id:id,User:user.name}" --output table',
+    "",
+    "# Použijte pouze resource group svého týmu.",
+    'export RG="rg-teamNN"',
+    'az group show --name "$RG" --query "{Name:name,Location:location}" --output table',
+  ].join("\n"));
+  cli.append(element("p", "section-description", "Zůstaňte přihlášení pro další příklady. Až dokončíte veškerou práci v Azure CLI, odhlaste se příkazem az logout."),
+    externalLink("Instalace Azure CLI", "https://learn.microsoft.com/cli/azure/install-azure-cli"));
+
+  const llm = guide("Foundry v Pythonu: Hello world s Responses API",
+    "Modely Foundry v tomto prostředí volejte přes APIM gateway, nikoli přímo přes Foundry. Použijte svůj týmový API klíč ze sekce „Váš API klíč“ a název GPT deploymentu ze sekce Modely. Responses API není podporované všemi modely.");
+  code(llm, "Python prostředí", [
+    "python -m venv .venv",
+    "source .venv/bin/activate",
+    "python -m pip install --upgrade openai",
+    "",
+    "# Bash: zadejte klíč bez zobrazení a bez uložení do historie.",
+    'read -rsp "Týmový API klíč: " API_KEY; echo',
+    "export API_KEY",
+    'export MODEL_DEPLOYMENT="<GPT-deployment-z-katalogu>"',
+    "python hello.py",
+    "unset API_KEY",
+  ].join("\n"));
+  code(llm, "hello.py", pythonResponsesExample(catalog.gateway.endpoint));
+  llm.append(element("p", "section-description",
+    "Nejprve uložte druhý blok jako hello.py, potom spusťte první blok. Klíč neukládejte do zdrojů ani frontendových proměnných. HTTP 401/403: ověřte klíč a stav týmu; 429: limit nebo rozpočet. Windows: virtuální prostředí aktivujte přes .venv\\Scripts\\Activate.ps1 a proměnné nastavte pomocí $env:NAME."),
+    externalLink("Responses API ve Foundry", "https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses"));
+
+  const swa = guide("Static Web Apps: nasazení vlastního webu",
+    "Pro statický frontend (HTML/CSS/JS nebo sestavený Vite projekt). Vyžaduje Node.js/npm a týmovou resource group. Spusťte z kořene svého projektu; předpokládá npm run build a výstup dist. Název změňte pro svůj tým. Nenasazujte tímto příkladem účastnický portál.");
+  code(swa, "SWA nasazení (Bash)", [
+    'export RG="rg-teamNN"',
+    'export SWA_NAME="swa-teamNN-demo"',
+    "npm run build",
+    'az staticwebapp create --name "$SWA_NAME" --resource-group "$RG" \\',
+    "  --location eastus2 --sku Free",
+    "",
+    "# Token zůstane jen v prostředí procesu, nevypisujte jej.",
+    "(",
+    '  export SWA_CLI_DEPLOYMENT_TOKEN="$(az staticwebapp secrets list \\',
+    '    --name "$SWA_NAME" --resource-group "$RG" --query properties.apiKey --output tsv)"',
+    '  if [ -z "$SWA_CLI_DEPLOYMENT_TOKEN" ]; then',
+    '    echo "Chybí SWA deployment token." >&2',
+    "    exit 1",
+    "  fi",
+    "  npx @azure/static-web-apps-cli deploy ./dist --env production",
+    ")",
+    "",
+    'az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" \\',
+    '  --query defaultHostname --output tsv',
+  ].join("\n"));
+  swa.append(element("p", "section-description",
+    "Bez nastavené autentizace je nový web veřejný. Neukládejte do dist klíče ani citlivá data. Pro vlastní Entra provider potřebujete Standard a konfiguraci route authorization. SWA nehostuje libovolný Python backend; pro něj použijte ACA. Nepoužívejte set -x ani --debug při práci s tokenem."),
+    externalLink("Nasazení pomocí SWA CLI", "https://azure.github.io/static-web-apps-cli/docs/cli/swa-deploy"));
+
+  const aca = guide("ACA Sandbox: web, backend a jednorázový job",
+    "Malé testovací Azure Container Apps prostředí ve vlastní týmové resource group, ne samostatná bezplatná sandbox služba. Pro web/API použijte Container App s HTTP ingress; pro úlohu bez webového serveru použijte Container Apps Job. Běžící prostředky a joby čerpají Azure rozpočet i po zablokování APIM klíče.");
+  code(aca, "ACA web a backend (Bash)", [
+    "az extension add --name containerapp --upgrade",
+    'export RG="rg-teamNN"',
+    'export ACA_ENV="aca-teamNN-sandbox"',
+    'az containerapp env create --name "$ACA_ENV" --resource-group "$RG" \\',
+    "  --location swedencentral",
+    "",
+    "# Testovací web; pro vlastní backend nahraďte image a target port.",
+    'az containerapp create --name "web-teamNN" --resource-group "$RG" \\',
+    '  --environment "$ACA_ENV" --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest \\',
+    "  --ingress external --target-port 80 --cpu 0.25 --memory 0.5Gi \\",
+    "  --min-replicas 0 --max-replicas 1",
+    'az containerapp show --name "web-teamNN" --resource-group "$RG" \\',
+    '  --query properties.configuration.ingress.fqdn --output tsv',
+  ].join("\n"));
+  code(aca, "ACA job (Bash)", [
+    'az containerapp job create --name "job-teamNN" --resource-group "$RG" \\',
+    '  --environment "$ACA_ENV" --trigger-type Manual \\',
+    "  --replica-timeout 60 --replica-retry-limit 0 \\",
+    "  --replica-completion-count 1 --parallelism 1 \\",
+    "  --image mcr.microsoft.com/k8se/quickstart-jobs:latest \\",
+    "  --cpu 0.25 --memory 0.5Gi",
+    'az containerapp job start --name "job-teamNN" --resource-group "$RG"',
+    'az containerapp job execution list --name "job-teamNN" --resource-group "$RG" --output table',
+  ].join("\n"));
+  aca.append(element("p", "section-description",
+    "Job používá prostředí vytvořené v prvním bloku; ukázkový image vypíše zprávu a skončí. Pro vlastní úlohu jej nahraďte svým image. Vlastní web/API musí naslouchat na 0.0.0.0 a na target portu. External ingress je veřejný HTTPS endpoint, nikoli automaticky chráněná aplikace; zapněte autentizaci před použitím neveřejných dat. Klíče patří do ACA secrets, ne do image ani frontendu. První start po škálování na nulu může být pomalejší."),
+    element("p", "section-description",
+      "Pokud CLI hlásí neregistrovaného resource providera, požádejte organizátory o registraci Microsoft.App a Microsoft.OperationalInsights; tým nemá měnit subscription. Po experimentu smažte pouze své konkrétní aplikace, joby a nepotřebné prostředí v Azure Portal, nikoli celou resource group."),
+    externalLink("Container Apps: nasazení kontejneru", "https://learn.microsoft.com/azure/container-apps/quickstart-existing-container"),
+    externalLink("Container Apps Jobs", "https://learn.microsoft.com/azure/container-apps/jobs"));
   return section;
 }
 
@@ -633,13 +787,21 @@ function render(catalog: Catalog, user: string): void {
   const keyLink = element("a", "nav-link", "Váš API klíč");
   keyLink.href = "#klic";
   keyLink.prepend(icon("lock"));
-  const githubLink = element("a", "nav-link", "GitHub");
+  const githubLink = element("a", "nav-link", "GitHub Copilot");
   githubLink.href = "#github";
-  githubLink.prepend(icon("code"));
+  const githubLogo = element("img", "github-nav-logo");
+  githubLogo.src = "/github-logo.svg";
+  githubLogo.alt = "";
+  githubLogo.width = 17;
+  githubLogo.height = 17;
+  githubLink.prepend(githubLogo);
   const irisLink = element("a", "nav-link", "IRIS");
   irisLink.href = "#iris";
   irisLink.prepend(icon("models"));
-  nav.append(keyLink, modelsLink, dataLink, irisLink, githubLink);
+  const examplesLink = element("a", "nav-link", "Examples");
+  examplesLink.href = "#examples";
+  examplesLink.prepend(icon("code"));
+  nav.append(keyLink, modelsLink, dataLink, irisLink, githubLink, examplesLink);
   sidebar.append(nav);
   const access = element("div", "sidebar-access");
   access.append(icon("lock"), element("p", "", "Jen pro Rakathon tenant"));
@@ -700,7 +862,7 @@ function render(catalog: Catalog, user: string): void {
   cards.append(...catalog.foundry.models.map((model) => modelCard(model, catalog)));
   if (catalog.foundry.models.length === 0) cards.append(element("p", "empty-state", "V době exportu nebyl nasazený žádný model."));
   models.append(cards);
-  main.append(keySection(), models, storageSection(catalog), irisSection(user), githubSection());
+  main.append(keySection(), models, storageSection(catalog), irisSection(user), githubSection(), examplesSection(catalog));
   const footer = element("footer", "footer");
   footer.append(element("span", "", "Rakathon · sdílené prostředí"),
     element("span", "", "Privátní data · krátkodobé odkazy pouze pro přihlášené týmy"));

@@ -529,6 +529,17 @@ h3 {
 .enrollment-preview-link { display: block; border-radius: 16px; }
 .enrollment-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--cp-border); border-radius: 16px; }
 .enrollment-preview figcaption { margin-top: 12px; color: var(--cp-text-muted); font-size: 0.78rem; }
+.github-nav-logo { display: block; width: 17px; height: 17px; flex: 0 0 17px; }
+html[data-theme="dark"] .github-nav-logo { filter: invert(1); }
+.copilot-resources { margin-top: 32px; }
+.resource-links { display: grid; gap: 12px; margin: 20px 0 24px; padding-left: 22px; }
+.resource-links .text-link { font-size: 0.85rem; }
+.example-body { min-width: 0; padding: 0 22px 22px; }
+.example-body > .section-description { max-width: 75ch; margin-top: 18px; }
+.example-body > .text-link { margin: 18px 18px 0 0; font-size: 0.82rem; }
+.example-body .code-example { max-width: 100%; font-size: 0.8rem; }
+.example-body .iris-code-toolbar { flex-wrap: wrap; }
+.example-body .field-label { margin: 0; }
 
 .iris-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .iris-target > *, .iris-step { min-width: 0; }
@@ -677,7 +688,7 @@ h3 {
 .empty-state { padding: 26px !important; color: var(--cp-text-muted); text-align: center; }
 .error-screen > h1 { max-width: 20ch; color: var(--cp-text); }
 
-@media (max-width: 1340px) {
+@media (max-width: 1600px) {
   .sidebar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand access" "navigation navigation"; }
   .navigation { width: 100%; justify-self: stretch; overflow-x: auto; justify-content: flex-start; }
 }
