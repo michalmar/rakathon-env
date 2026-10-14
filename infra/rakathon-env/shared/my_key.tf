@@ -61,6 +61,9 @@ resource "azurerm_linux_function_app" "my_key" {
     STORAGE_ACCOUNT_NAME       = local.storage_account_name
     STORAGE_CONTAINER          = "data"
     LOG_ANALYTICS_WORKSPACE_ID = azurerm_log_analytics_workspace.gateway.workspace_id
+    AZURE_SUBSCRIPTION_ID      = data.azurerm_client_config.current.subscription_id
+    AZURE_COST_WINDOW_START    = var.budget_window_start
+    AZURE_COST_BUDGET_USD      = tostring(var.overall_budget_usd)
   }
 
   tags = merge(var.tags, { service = "rakathon-my-key" })
@@ -100,6 +103,13 @@ resource "azurerm_role_assignment" "my_key_apim" {
 resource "azurerm_role_assignment" "portal_spend_law" {
   scope                = azurerm_log_analytics_workspace.gateway.id
   role_definition_name = "Log Analytics Reader"
+  principal_id         = azurerm_linux_function_app.my_key.identity[0].principal_id
+}
+
+# Billing (Cost Management Query API) pro skutečné náklady Azure v sekci Náklady.
+resource "azurerm_role_assignment" "portal_cost_reader" {
+  scope                = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
+  role_definition_name = "Cost Management Reader"
   principal_id         = azurerm_linux_function_app.my_key.identity[0].principal_id
 }
 

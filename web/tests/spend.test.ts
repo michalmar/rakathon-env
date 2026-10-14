@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canViewSpend, compareValues, filterSpend, loadSpend, parseSpend } from "../src/spend";
-import { interactiveSpendFixture, spendFixture } from "./fixtures";
+import { canViewSpend, compareValues, filterSpend, loadAzureCost, loadSpend, parseAzureCost, parseSpend } from "../src/spend";
+import { azureCostFixture, interactiveSpendFixture, spendFixture } from "./fixtures";
 
 describe("organizer spend dashboard", () => {
   it("cross-filters all detail and model counters without changing the event totals", () => {
@@ -61,5 +61,41 @@ describe("organizer spend dashboard", () => {
       await expect(loadSpend(async () => new Response("", { status }))).rejects.toThrow();
     }
     await expect(loadSpend(async () => new Response("<html>login</html>"))).rejects.toThrow("Server nevrátil");
+  });
+});
+
+describe("Azure billing snapshot", () => {
+  it("parses billing snapshot including credits and unknown data date", () => {
+    const fixture = azureCostFixture();
+    expect(parseAzureCost(fixture).data.totalUsd).toBe(812.5);
+    const credit = azureCostFixture();
+    credit.data.resourceGroups[0]!.costUsd = -1.5;
+    credit.data.dataThrough = null;
+    credit.error = "azure-cost-throttled";
+    const parsed = parseAzureCost(credit);
+    expect(parsed.data.resourceGroups[0]?.costUsd).toBe(-1.5);
+    expect(parsed.data.dataThrough).toBeNull();
+    expect(parsed.error).toBe("azure-cost-throttled");
+  });
+  it("rejects malformed billing", () => {
+    const base = azureCostFixture();
+    for (const bad of [null, {}, { ...base, data: null }, { ...base, data: { ...base.data, budgetUsd: 0 } },
+      { ...base, data: { ...base.data, dataThrough: "12.10.2026" } }, { ...base, data: { ...base.data, teams: [{ team: "rg-team01", costUsd: 1 }] } },
+      { ...base, error: 5 }]) {
+      expect(() => parseAzureCost(bad)).toThrow();
+    }
+  });
+  it("uses the authenticated same-origin billing API and surfaces failures", async () => {
+    const impl: typeof fetch = async (url, init) => {
+      expect(url).toBe("/api/azure-cost");
+      expect(init?.credentials).toBe("same-origin");
+      expect(init?.cache).toBe("no-store");
+      return Response.json(azureCostFixture());
+    };
+    expect((await loadAzureCost(impl)).data.budgetUsd).toBe(5000);
+    for (const status of [401, 403, 502, 503]) {
+      await expect(loadAzureCost(async () => new Response("", { status }))).rejects.toThrow();
+    }
+    await expect(loadAzureCost(async () => new Response("<html>login</html>"))).rejects.toThrow("Server nevrátil");
   });
 });

@@ -175,6 +175,40 @@ potřeba nová služba, přímé Azure přihlášení prohlížeče ani další 
 Skript po zip deploy synchronizuje Function triggery, aby se nové API
 routes zaregistrovaly i při nasazení balíčku přes URL.
 
+## Skutečné náklady Azure (billing)
+
+Na začátku sekce **Náklady** je blok se skutečnými fakturovanými náklady
+celé Azure subscription v USD proti maximálnímu rozpočtu akce
+(`overall_budget_usd`, výchozí 5 000 USD) od začátku rozpočtového okna
+(`budget_window_start`). Platí stejné omezení přístupu jako u odhadu:
+`GET /api/azure-cost` odmítá účty `teamNN` odpovědí 403.
+
+Zdrojem je Cost Management Query API (`ActualCost`, agregace `CostUSD`,
+seskupení podle resource group). Timer `azure-cost-refresh` ve Function
+`my-key` dotaz spouští každých 15 minut a výsledek ukládá jako snapshot
+do kontejneru `portal-cache` v úložišti Function; HTTP endpoint čte jen
+snapshot, takže počet diváků nezvyšuje počet dotazů na billing (výjimkou
+je jednorázové naplnění, když snapshot ještě neexistuje). Dotaz posílá
+vlastní hlavičku `ClientType`, aby nesdílel throttling kvótu s CLI/portálem.
+Selhané obnovení (např. throttling) ponechá poslední úspěšná data a portál
+zobrazí varování s kódem chyby; data starší než 40 minut také vyvolají
+varování.
+
+Billing Azure má zpoždění hodin až dnů. Portál proto uvádí datum, do
+kterého jsou fakturovaná data k dispozici, a čas posledního dotazu.
+Náklady týmu jsou náklady jeho resource group `rg-teamNN`; vše ostatní
+(sdílená infrastruktura, APIM a volání modelů, která se fakturují do
+sdílené resource group) je uvedeno jako sdílené. Graf týmů je seřazený
+od největšího spendera a sčítá vlastní Azure zdroje týmu (billing) a
+odhad spotřeby modelů přes APIM. Rozpad podle všech resource group je
+v rozbalitelné tabulce. Billing a odhad se načítají nezávisle; výpadek
+jednoho nezakryje druhý.
+
+Aktivace: Terraform v `infra/rakathon-env/shared` přidá roli Cost
+Management Reader na subscription pro managed identity Function a app
+settings `AZURE_SUBSCRIPTION_ID`, `AZURE_COST_WINDOW_START`,
+`AZURE_COST_BUDGET_USD`; potom nasaďte Function a web.
+
 ## Datové soubory
 
 Tlačítko **Stáhnout** volá `/api/data-link` a obdrží read-only user-delegation

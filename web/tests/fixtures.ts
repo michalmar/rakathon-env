@@ -1,5 +1,5 @@
 import { environment, resourceId, type Catalog } from "../src/catalog";
-import type { Spend } from "../src/spend";
+import type { AzureCostSnapshot, Spend } from "../src/spend";
 
 export function catalogFixture(): Catalog {
   return {
@@ -94,4 +94,17 @@ export function interactiveSpendFixture(): Spend {
     { at: hour, team: "ops-test", deployment: "old-model", costUsd: 4 },
   ];
   return data;
+}
+
+export function azureCostFixture(): AzureCostSnapshot {
+  const now = new Date().toISOString();
+  return {
+    attemptedAt: now, error: null,
+    data: {
+      refreshedAt: now, windowStart: "2026-10-10T00:00:00.000Z", dataThrough: "2026-10-12",
+      budgetUsd: 5000, totalUsd: 812.5, teamUsd: 62.5, sharedUsd: 750, pct: 16.25,
+      teams: [{ team: "team08", costUsd: 50 }, { team: "team03", costUsd: 12.5 }],
+      resourceGroups: [{ name: "rg-rakathon-shared", costUsd: 750 }, { name: "rg-team08", costUsd: 50 }, { name: "rg-team03", costUsd: 12.5 }],
+    },
+  };
 }

@@ -306,7 +306,7 @@ variable "overall_revoke_safety_margin_usd" {
 variable "budget_window_start" {
   description = "Začátek rozpočtového okna (UTC ISO 8601); spotřeba se počítá od tohoto okamžiku."
   type        = string
-  default     = "2026-10-10T00:00:00Z"
+  default     = "2026-10-15T00:00:00Z"
 }
 
 variable "budget_alert_emails" {

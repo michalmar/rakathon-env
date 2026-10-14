@@ -32,4 +32,4 @@ az rest \
   --only-show-errors \
   --output none
 
-echo "Function ${app_name} nasazena. Endpointy /api/my-key, /api/data-link a /api/spend vyžadují hlavičku identity ze SWA."
+echo "Function ${app_name} nasazena. Endpointy /api/my-key, /api/data-link, /api/spend a /api/azure-cost vyžadují hlavičku identity ze SWA."

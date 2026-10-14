@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { catalogFixture, interactiveSpendFixture, spendFixture, userFixture } from "./fixtures";
+import { azureCostFixture, catalogFixture, interactiveSpendFixture, spendFixture, userFixture } from "./fixtures";
 
 async function prepare(page: Page, user = "organizer@example.com") {
   const principal = userFixture();
@@ -11,6 +11,10 @@ async function prepare(page: Page, user = "organizer@example.com") {
   await page.route("**/api/spend", (route) => {
     calls++;
     return route.fulfill({ json: spendFixture() });
+  });
+  await page.route("**/api/azure-cost", (route) => {
+    calls++;
+    return route.fulfill({ json: azureCostFixture() });
   });
   return () => calls;
 }
@@ -44,7 +48,7 @@ test("non-team account sees estimates, zero usage and real APIM state separately
   await section.getByText("Rozpad tým × deployment", { exact: true }).click();
   await expect(section.getByRole("table", { name: "Spotřeba podle subscription a deploymentu" })).toContainText("ops-test");
   await section.getByRole("button", { name: "Obnovit přehled" }).click();
-  await expect.poll(calls).toBe(2);
+  await expect.poll(calls).toBe(4);
 });
 
 test("failed refresh marks retained data stale and a retry recovers", async ({ page }) => {
@@ -227,4 +231,38 @@ test("dashboard remains readable on desktop/mobile in light/dark with accessible
       await page.screenshot({ path: testInfo.outputPath(`spend-${width}-${theme}.png`) });
     }
   }
+});
+
+test("billing shows real Azure spend vs budget and teams ranked by total spend", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Náklady", exact: true }).click();
+  const section = page.locator("#spend");
+  await expect(section.getByRole("heading", { name: "Skutečné náklady Azure (billing)" })).toBeVisible();
+  await expect(section.locator(".billing-summary dd").first()).toHaveText("812,50 USD");
+  await expect(section.locator(".billing-summary")).toContainText("5 000,00 USD");
+  await expect(section.locator(".billing-meter")).toContainText("16,3 %");
+  await expect(section.locator(".billing-content .spend-freshness")).toContainText("12. 10. 2026");
+  // team07: 0 billing + 1200 models; team08: 50 billing + 0 models; team03: 12.5 billing only
+  await expect(section.locator(".billing-team")).toHaveText(["team07", "team08", "team03"]);
+  await expect(section.locator(".billing-rank-row").first()).toContainText("1 200,00 USD");
+  await section.getByText("Rozpad podle resource group", { exact: true }).click();
+  await expect(section.getByRole("table", { name: "Skutečné náklady podle resource group (USD)" })).toContainText("rg-rakathon-shared");
+});
+
+test("billing and estimate fail independently", async ({ page }) => {
+  await prepare(page);
+  await page.route("**/api/azure-cost", (route) => route.fulfill({ status: 503, json: { error: "azure-cost-unavailable" } }));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Náklady", exact: true }).click();
+  const section = page.locator("#spend");
+  await expect(section.getByRole("alert")).toContainText("Skutečné náklady Azure se nepodařilo načíst (HTTP 503)");
+  await expect(section.locator(".spend-summary")).toBeVisible();
+  const stale = azureCostFixture();
+  stale.error = "azure-cost-throttled";
+  await page.route("**/api/azure-cost", (route) => route.fulfill({ json: stale }));
+  await page.route("**/api/spend", (route) => route.fulfill({ status: 502, json: { error: "spend-query-error" } }));
+  await section.getByRole("button", { name: "Obnovit přehled" }).click();
+  await expect(section.locator(".billing-content")).toContainText("Poslední obnovení billingu selhalo (azure-cost-throttled");
+  await expect(section.getByRole("alert")).toContainText("Náklady se nepodařilo načíst (HTTP 502)");
 });

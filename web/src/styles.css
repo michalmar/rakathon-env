@@ -57,12 +57,12 @@ html[data-theme="dark"] {
 .spend-content { display: grid; gap: 24px; min-width: 0; }
 .spend-section .spend-refresh { width: auto; min-height: 44px; white-space: nowrap; flex-shrink: 0; }
 .spend-caveat { margin-bottom: 24px; max-width: 85ch; }
-.spend-summary { display: flex; flex-wrap: wrap; gap: 20px 36px; margin: 0; }
-.spend-summary dt { color: var(--cp-text-muted); font-size: 0.82rem; }
-.spend-summary dd { margin: 4px 0 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.spend-summary, .billing-summary { display: flex; flex-wrap: wrap; gap: 20px 36px; margin: 0; }
+.spend-summary dt, .billing-summary dt { color: var(--cp-text-muted); font-size: 0.82rem; }
+.spend-summary dd, .billing-summary dd { margin: 4px 0 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .spend-budget { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .spend-budget progress { width: 100px; height: 10px; accent-color: var(--cp-blue); }
-.spend-overall-meter progress { width: min(360px, 65vw); }
+.spend-overall-meter progress, .billing-meter progress { width: min(360px, 65vw); }
 .spend-freshness { color: var(--cp-text-muted); font-size: 0.82rem; max-width: 85ch; }
 .spend-warning { padding: 14px 18px; color: var(--cp-warning); background: var(--cp-warning-bg); border-radius: 10px; }
 .spend-message { padding: 16px 0; color: var(--cp-text-muted); }
@@ -80,6 +80,16 @@ html[data-theme="dark"] {
 .spend-legend { display: flex; flex-wrap: wrap; gap: 20px; margin: 12px 0 20px; font-size: 0.82rem; }
 .spend-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; background: var(--cp-blue); }
 .spend-legend .spend-legend-other::before { background: var(--cp-accent); }
+.spend-subheading { margin: 32px 0 8px; font-size: 1.1rem; }
+.billing-content { margin-bottom: 8px; }
+.billing-team-chart { margin-top: 24px; }
+.billing-rank-row { display: grid; grid-template-columns: 75px minmax(0, 1fr) 110px; gap: 4px 12px; align-items: center; }
+.billing-rank-row > .spend-rank-note { grid-column: 2 / -1; margin-top: 0; }
+.billing-team { font-weight: 600; font-variant-numeric: tabular-nums; }
+.billing-track { display: flex; overflow: hidden; }
+.billing-fill-own { display: block; height: 100%; background: var(--cp-blue); }
+.billing-fill-models { display: block; height: 100%; background: var(--cp-accent); }
+.spend-legend .billing-legend-models::before { background: var(--cp-accent); }
 .spend-filter-bar { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; padding: 18px; border: 1px solid var(--cp-border); border-radius: 12px; background: var(--cp-surface); }
 .spend-filter-label { display: grid; gap: 6px; font-size: 0.82rem; font-weight: 650; flex: 0 1 250px; min-width: 0; }
 .spend-team-filter { font: inherit; width: 100%; min-height: 44px; }
@@ -117,6 +127,7 @@ html[data-theme="dark"] .spend-model-name .provider-openai .provider-logo { filt
   .spend-filter-label { flex-grow: 1; }
   .spend-filter-status { flex-basis: 100%; }
   .spend-rank-row > .spend-team-select { grid-template-columns: 65px minmax(0, 1fr) 60px; gap: 8px; }
+  .billing-rank-row { grid-template-columns: 60px minmax(0, 1fr) 96px; gap: 4px 8px; }
 }
 html { scroll-behavior: smooth; }
 body {

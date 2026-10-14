@@ -108,6 +108,51 @@ export async function loadSpend(fetchImpl: typeof fetch = fetch): Promise<Spend>
   return parseSpend(await response.json());
 }
 
+export interface AzureCost {
+  refreshedAt: string; windowStart: string; dataThrough: string | null;
+  budgetUsd: number; totalUsd: number; teamUsd: number; sharedUsd: number; pct: number;
+  teams: { team: string; costUsd: number }[];
+  resourceGroups: { name: string; costUsd: number }[];
+}
+export interface AzureCostSnapshot { attemptedAt: string; error: string | null; data: AzureCost }
+
+// Billing may contain credits/refunds, so amounts may be negative (unlike the APIM estimate).
+function amount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) invalid();
+  return value;
+}
+
+export function parseAzureCost(value: unknown): AzureCostSnapshot {
+  const snapshot = record(value);
+  const data = record(snapshot.data);
+  const budgetUsd = numeric(data.budgetUsd);
+  if (!budgetUsd) invalid();
+  if (data.dataThrough !== null && !/^\d{4}-\d{2}-\d{2}$/.test(text(data.dataThrough))) invalid();
+  if (snapshot.error !== null && typeof snapshot.error !== "string") invalid();
+  return {
+    attemptedAt: timestamp(snapshot.attemptedAt), error: snapshot.error as string | null,
+    data: {
+      refreshedAt: timestamp(data.refreshedAt), windowStart: timestamp(data.windowStart), dataThrough: data.dataThrough as string | null,
+      budgetUsd, totalUsd: amount(data.totalUsd), teamUsd: amount(data.teamUsd), sharedUsd: amount(data.sharedUsd), pct: amount(data.pct),
+      teams: list(data.teams, (item) => {
+        if (!/^team\d{2}$/.test(text(item.team))) invalid();
+        return { team: text(item.team), costUsd: amount(item.costUsd) };
+      }),
+      resourceGroups: list(data.resourceGroups, (item) => ({ name: text(item.name), costUsd: amount(item.costUsd) })),
+    },
+  };
+}
+
+export async function loadAzureCost(fetchImpl: typeof fetch = fetch): Promise<AzureCostSnapshot> {
+  const response = await fetchImpl("/api/azure-cost", {
+    cache: "no-store", credentials: "same-origin", redirect: "error", signal: AbortSignal.timeout(60000),
+  });
+  if (response.status === 401 || response.status === 403) throw new Error("Billing je pouze pro přihlášené účty mimo teamNN. Ověřte přihlášení.");
+  if (!response.ok) throw new Error(`Skutečné náklady Azure se nepodařilo načíst (HTTP ${response.status}). Billing se obnovuje každých 15 minut; při opakované chybě kontaktujte správce.`);
+  if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("Server nevrátil billing Azure. Ověřte přihlášení a nasazení API.");
+  return parseAzureCost(await response.json());
+}
+
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", textValue?: string): HTMLElementTagNameMap[K] {
   const result = document.createElement(tag);
   result.className = className;
@@ -377,6 +422,84 @@ function hourlyChart(data: Spend, state: DashboardState): HTMLElement {
   return figure;
 }
 
+const day = (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString("cs-CZ", { timeZone: "UTC" });
+
+function billingTeamChart(cost: AzureCost, spend: Spend | undefined): HTMLElement {
+  const figure = node("figure", "spend-rank-chart billing-team-chart");
+  figure.append(node("figcaption", "", "Týmy podle nákladů · od největšího"),
+    node("p", "section-description", spend ?
+      "Vlastní Azure zdroje týmu (billing resource group rg-teamNN) + modely přes APIM (odhad, volání modelů se fakturují do sdílené infrastruktury)." :
+      "Vlastní Azure zdroje týmu (billing resource group rg-teamNN). Odhad modelů zatím není načtený."));
+  const names = new Set([...cost.teams.map((item) => item.team), ...(spend?.teams ?? []).map((item) => item.team)]);
+  const ranked = [...names].map((team) => {
+    const billed = cost.teams.find((item) => item.team === team)?.costUsd ?? 0;
+    const models = spend?.teams.find((item) => item.team === team)?.costUsd ?? 0;
+    return { team, billed, models, total: billed + models };
+  }).sort((a, b) => b.total - a.total || a.team.localeCompare(b.team));
+  const largest = Math.max(0, ...ranked.map((item) => item.total));
+  const share = (value: number) => `${largest > 0 ? Math.max(0, value) / largest * 100 : 0}%`;
+  const list = node("ol", "spend-rank-list");
+  for (const item of ranked) {
+    const row = node("li", "billing-rank-row");
+    const plot = node("span", "spend-rank-track billing-track");
+    const own = node("span", "billing-fill-own");
+    own.style.width = share(item.billed);
+    const models = node("span", "billing-fill-models");
+    models.style.width = share(item.models);
+    plot.append(own, models);
+    plot.setAttribute("aria-hidden", "true");
+    row.append(node("span", "billing-team", item.team), plot, node("span", "spend-rank-value", usd(item.total)),
+      node("span", "spend-rank-note", spend ? `Zdroje ${usd(item.billed)} · modely ${usd(item.models)}` : `Zdroje ${usd(item.billed)}`));
+    list.append(row);
+  }
+  figure.append(list);
+  if (!ranked.length) figure.append(node("p", "empty-state", "Billing zatím neobsahuje žádnou týmovou resource group."));
+  else {
+    const legend = node("p", "spend-legend");
+    legend.append(node("span", "billing-legend-own", "Vlastní zdroje (billing)"));
+    if (spend) legend.append(node("span", "billing-legend-models", "Modely (odhad APIM)"));
+    figure.append(legend);
+  }
+  return figure;
+}
+
+function renderAzureCost(snapshot: AzureCostSnapshot, spend: Spend | undefined, state: DashboardState): HTMLElement {
+  const { data: cost } = snapshot;
+  const content = node("div", "billing-content");
+  const summary = node("dl", "billing-summary");
+  for (const [label, value] of [
+    ["Skutečné náklady Azure", usd(cost.totalUsd)], ["Max. rozpočet", usd(cost.budgetUsd)],
+    ["Zbývá", usd(Math.max(0, cost.budgetUsd - cost.totalUsd))],
+    ["Týmové resource groups", usd(cost.teamUsd)], ["Sdílená infrastruktura a modely", usd(cost.sharedUsd)],
+  ]) {
+    const pair = node("div");
+    pair.append(node("dt", "", label!), node("dd", "", value!));
+    summary.append(pair);
+  }
+  const meter = budgetMeter(cost.pct);
+  meter.classList.add("billing-meter");
+  meter.querySelector("progress")?.setAttribute("aria-label", "Vyčerpání maximálního rozpočtu Azure");
+  content.append(summary, meter);
+  if (cost.totalUsd >= cost.budgetUsd) content.append(node("p", "spend-warning", `Skutečné náklady Azure dosáhly maximálního rozpočtu ${usd(cost.budgetUsd)}.`));
+  if (snapshot.error) content.append(node("p", "spend-warning",
+    `Poslední obnovení billingu selhalo (${snapshot.error}, ${when(snapshot.attemptedAt)}). Zobrazená data jsou z ${when(cost.refreshedAt)}.`));
+  else if (Date.now() - Date.parse(cost.refreshedAt) > 40 * 60000) content.append(node("p", "spend-warning",
+    `Billing nebyl obnoven déle než 40 minut (poslední ${when(cost.refreshedAt)}). Ověřte timer Function my-key.`));
+  content.append(node("p", "spend-freshness",
+    `Fakturovaná data Azure jsou k dispozici do ${cost.dataThrough ? day(cost.dataThrough) : "— zatím bez fakturovaných dat"} (billing má zpoždění hodin až dnů). Období od ${when(cost.windowStart)}. Dotaz na billing: ${when(cost.refreshedAt)}, obnovuje se každých 15 minut.`));
+  content.append(billingTeamChart(cost, spend));
+  const details = disclosure("billing-groups", "Rozpad podle resource group", state);
+  if (cost.resourceGroups.length) details.append(table("billing-groups", "Skutečné náklady podle resource group (USD)", [
+    { label: "Resource group", value: (group) => group.name },
+    { label: "Náklady USD", value: (group) => group.costUsd, render: (group) => usd(group.costUsd) },
+    { label: "Podíl", value: (group) => cost.totalUsd ? group.costUsd / cost.totalUsd : 0,
+      render: (group) => `${count(Math.round((cost.totalUsd ? group.costUsd / cost.totalUsd * 100 : 0) * 10) / 10)} %` },
+  ], cost.resourceGroups, state, { column: 1, direction: "descending" }));
+  else details.append(node("p", "empty-state", "Billing zatím neobsahuje žádné náklady."));
+  content.append(details);
+  return content;
+}
+
 function renderSpend(all: Spend, state: DashboardState, catalog: Map<string, ModelDeployment>, selectTeam: (team: string | null) => void): HTMLElement {
   const data = filterSpend(all, state.selectedTeam);
   const content = node("div", "spend-content");
@@ -488,9 +611,9 @@ export function spendSection(models: ModelDeployment[] = []): HTMLElement {
   section.setAttribute("aria-labelledby", "spend-heading");
   const header = node("div", "section-heading");
   const title = node("div");
-  const heading = node("h2", "", "Odhad nákladů modelů");
+  const heading = node("h2", "", "Náklady");
   heading.id = "spend-heading";
-  title.append(heading, node("p", "section-description", "Přehled pro účty mimo teamNN. Rozpočty od začátku akce; graf pouze za posledních 24 hodin."));
+  title.append(heading, node("p", "section-description", "Přehled pro účty mimo teamNN. Skutečné náklady Azure z billingu a odhad spotřeby modelů od začátku akce."));
   const refresh = node("button", "button file-action spend-refresh", "Obnovit přehled");
   refresh.type = "button";
   header.append(title, refresh);
@@ -498,14 +621,20 @@ export function spendSection(models: ModelDeployment[] = []): HTMLElement {
     "Odhad z úspěšných požadavků přes APIM, nikoli fakturovaná cena Azure. Nezahrnuje hosting APIM, další infrastrukturu ani volání mimo gateway. Cache slevy nejsou započtené; obrázky jsou odhadnuté po požadavcích. Logy mají zpoždění několika minut, job běží každých pět minut.");
   const message = node("p", "spend-message", "Přehled se načte při zobrazení této sekce.");
   const body = node("div");
-  section.append(header, caveat, message, body);
+  const billingHeading = node("h3", "spend-subheading", "Skutečné náklady Azure (billing)");
+  const billingMessage = node("p", "spend-message", "Billing se načte při zobrazení této sekce.");
+  const billingBody = node("div");
+  const estimateHeading = node("h3", "spend-subheading", "Odhad nákladů modelů (APIM)");
+  section.append(header, billingHeading, billingMessage, billingBody, estimateHeading, caveat, message, body);
   let active = false;
   let busy = false;
   let lastAttempt = 0;
   let data: Spend | undefined;
+  let billing: AzureCostSnapshot | undefined;
   const state: DashboardState = { selectedTeam: null, sorts: new Map(), openDetails: new Set() };
   const catalog = new Map(models.map((model) => [model.deployment, model]));
   function render() {
+    if (billing) billingBody.replaceChildren(renderAzureCost(billing, data, state));
     if (!data) return;
     const focusKey = document.activeElement instanceof HTMLElement ? document.activeElement.dataset.spendFocus : undefined;
     body.replaceChildren(renderSpend(data, state, catalog, (team) => {
@@ -532,16 +661,34 @@ export function spendSection(models: ModelDeployment[] = []): HTMLElement {
     message.classList.remove("is-error");
     message.removeAttribute("role");
     message.textContent = "Načítání nákladů…";
+    billingBody.setAttribute("aria-busy", "true");
+    billingMessage.hidden = false;
+    billingMessage.classList.remove("is-error");
+    billingMessage.removeAttribute("role");
+    billingMessage.textContent = "Načítání billingu Azure…";
     try {
-      data = await loadSpend();
-      if (state.selectedTeam && !data.teams.some((team) => team.team === state.selectedTeam)) state.selectedTeam = null;
+      // Independent requests: a billing outage must not hide the APIM estimate and vice versa.
+      const [spendResult, billingResult] = await Promise.allSettled([loadSpend(), loadAzureCost()]);
+      if (billingResult.status === "fulfilled") {
+        billing = billingResult.value;
+        billingMessage.hidden = true;
+      } else {
+        billingMessage.classList.add("is-error");
+        billingMessage.setAttribute("role", "alert");
+        billingMessage.textContent = `${billingResult.reason instanceof Error ? billingResult.reason.message : "Načtení billingu selhalo. Obnovte přehled."}${billingBody.childElementCount ? " Níže zůstává poslední úspěšně načtený billing; není aktuální." : ""}`;
+      }
+      if (spendResult.status === "fulfilled") {
+        data = spendResult.value;
+        if (state.selectedTeam && !data.teams.some((team) => team.team === state.selectedTeam)) state.selectedTeam = null;
+        message.hidden = true;
+      } else {
+        message.classList.add("is-error");
+        message.setAttribute("role", "alert");
+        message.textContent = `${spendResult.reason instanceof Error ? spendResult.reason.message : "Načtení nákladů selhalo. Obnovte přehled."}${body.childElementCount ? " Níže zůstává poslední úspěšně načtený přehled; není aktuální." : ""}`;
+      }
       render();
-      message.hidden = true;
-    } catch (error) {
-      message.classList.add("is-error");
-      message.setAttribute("role", "alert");
-      message.textContent = `${error instanceof Error ? error.message : "Načtení nákladů selhalo. Obnovte přehled."}${body.childElementCount ? " Níže zůstává poslední úspěšně načtený přehled; není aktuální." : ""}`;
     } finally {
+      billingBody.setAttribute("aria-busy", "false");
       busy = false;
       refresh.disabled = false;
       body.setAttribute("aria-busy", "false");
