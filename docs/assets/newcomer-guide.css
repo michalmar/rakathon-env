@@ -7,6 +7,8 @@
 .guide-slide-brand,
 .guide-hero-qr { display: none; }
 
+.guide-account-example { max-width: 720px; }
+
 @media screen {
   :root {
     --bg: #f4f7f8;

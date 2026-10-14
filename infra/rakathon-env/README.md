@@ -204,6 +204,8 @@ export TAP_END_DATETIME="$(format_utc_epoch "${tap_end_epoch}")"
 # Volitelné nastavení:
 export TAP_IS_USABLE_ONCE=false
 export TEAM_USER_OUTPUT_DIR="$PWD/team-user-access"
+# Volitelné: začít explicitním číslem týmu, například team99.
+# export TEAM_START_NUMBER=99
 
 ./scripts/create-team-users.sh      # vytvoří 1 uživatele
 ./scripts/create-team-users.sh 5    # vytvoří 5 dalších uživatelů

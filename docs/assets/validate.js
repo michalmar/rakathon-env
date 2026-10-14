@@ -182,7 +182,8 @@ async function presentation(page, kind, prefix) {
   await page.keyboard.press("End");
   check("End reaches closing", await page.locator(selector).getAttribute("id") === expected.at(-1));
   await page.keyboard.press("o");
-  check("named index dialog", await page.getByRole("dialog", { name: "Slide index" }).isVisible());
+  const indexName = await page.locator(".slide-index").getAttribute("aria-label");
+  check("named index dialog", !!indexName?.trim() && await page.getByRole("dialog", { name: indexName, exact: true }).isVisible());
   check("index identifies current slide", await page.locator('dialog[open] [aria-current="true"]').count() === 1);
   await page.keyboard.press("Escape");
   await page.keyboard.press("Home");

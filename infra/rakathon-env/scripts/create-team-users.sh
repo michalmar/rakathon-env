@@ -18,12 +18,18 @@ TAP_APP_CERTIFICATE="${TAP_APP_CERTIFICATE:-${HOME}/.azure-rak/team-provisioner/
 TAP_APP_AZURE_CONFIG_DIR="${TAP_APP_AZURE_CONFIG_DIR:-${HOME}/.azure-rak-team-provisioner}"
 
 requested_count="${1:-1}"
+team_start_number="${TEAM_START_NUMBER:-}"
 tap_is_usable_once="${TAP_IS_USABLE_ONCE:-true}"
 output_directory="${TEAM_USER_OUTPUT_DIR:-${PWD}/team-user-access}"
 
 if [[ ! "${requested_count}" =~ ^[1-9][0-9]*$ ]]; then
   echo "Použití: $0 [počet_nových_uživatelů]" >&2
   echo "Počet musí být kladné celé číslo. Výchozí hodnota je 1." >&2
+  exit 1
+fi
+
+if [[ -n "${team_start_number}" && ! "${team_start_number}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "TEAM_START_NUMBER musí být kladné celé číslo." >&2
   exit 1
 fi
 
@@ -274,7 +280,11 @@ while IFS= read -r existing_upn; do
 done <<<"${existing_user_upns}"
 
 created_count=0
-candidate_number=$((max_team_number + 1))
+if [[ -n "${team_start_number}" ]]; then
+  candidate_number=$((10#${team_start_number}))
+else
+  candidate_number=$((max_team_number + 1))
+fi
 
 while ((created_count < requested_count)); do
   printf -v team_name 'team%02d' "${candidate_number}"
