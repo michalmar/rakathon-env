@@ -5,7 +5,8 @@ Aktuální rozsah tvoří dva oddělené Terraform deploymenty:
 - `setup` vytvoří resource group a Storage pro Terraform state.
 - `shared` vytvoří sdílenou resource group, Storage, container `data`,
   veřejný Microsoft Foundry resource, Foundry project a model deploymenty;
-  také obsahuje Static Web Apps Standard a Entra autentizaci účastnického portálu.
+  také obsahuje APIM gateway, Log Analytics, nákladový job s alerty a workbookem,
+  Static Web Apps Standard s Entra autentizací a připojený Function backend portálu.
 
 Týmy vznikají skripty `create-team-users` (Entra uživatel `teamNN`, resource
 group `rg-teamNN`, role `Contributor` na vlastní RG, `Storage Blob Data Reader`
@@ -30,8 +31,13 @@ Rozpočty, měření a blokace viz [`docs/cost-control.md`](docs/cost-control.md
 - `Standard_LRS` je nákladově úsporná volba pro hackathon, ale nechrání před
   výpadkem celé availability zone. Pro vyšší odolnost změňte replikaci na ZRS.
 
-Architektonický diagram je v
+Architektonický diagram a popis aktuálních toků jsou v
 [`05_arch_diagram_update_result.html`](05_arch_diagram_update_result.html).
+Snapshot ověřený v Azure 2026-10-14 zahrnuje osm modelových deploymentů,
+SWA s Function API (`my-key`, `data-link`, `spend`), týmovou resource group
+a řízení nákladů přes APIM, Log Analytics a Logic App. Starší soubory
+`01_arch_diagram_draft.html` a `04_arch_diagram_update_draft.html` jsou
+historické návrhy, nikoli aktuální stav.
 
 ## Microsoft Foundry
 
@@ -51,9 +57,16 @@ subscription maxima ověřená 2026-10-09: `10000` pro grok, Astra a DeepSeek,
 model. Foundry local/key autentizace je **vypnutá** (`local_auth_enabled =
 false`): žádný sdílený Foundry klíč neexistuje a přímé volání Foundry vrací
 401. Jediná cesta k modelům je APIM gateway (managed identity APIM má
-na Foundry roli). Storage shared keys také nejsou povolené.
-Veřejný síťový přístup k Foundry je standardně vypnutý a odchozí provoz je
-omezený. Případné povolení nastavte explicitně v `shared/terraform.tfvars`.
+na Foundry roli). Datový a state Storage nemají povolené shared keys;
+oddělený Function runtime Storage je používá (viz Function backend níže).
+Veřejný síťový přístup k Foundry je ve výchozí konfiguraci vypnutý a odchozí
+provoz omezený. Nasazený stav ověřený 2026-10-14 má v
+`shared/terraform.tfvars` veřejný přístup explicitně povolený a odchozí
+omezení vypnuté, aby veřejná APIM gateway dosáhla na Foundry.
+Datový i state Storage mají aktuálně firewall `Allow`, ale anonymní čtení
+a shared keys zůstávají vypnuté. Výchozí nastavení firewallu `Deny` výše
+proto nepopisuje aktuální nasazení. Sdílené prostředí nemá VNet ani private
+endpoints; veřejná síťová dostupnost není oprávnění číst data nebo volat modely.
 
 ## Požadavky
 

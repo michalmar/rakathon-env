@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="cs">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rakathon – nasazené Azure prostředí s Microsoft Foundry</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', 'Inter', -apple-system, sans-serif; background: #f3f2f1; color: #323130; }
 
@@ -26,7 +25,20 @@
   .stat { font-size: 11px; color: #605e5c; }
   .stat b { color: #323130; }
 
-  .container { display: flex; height: calc(100vh - 56px); }
+  .container { display: flex; height: calc(100vh - 56px); min-height: 600px; }
+  .architecture-notes { background: white; border-top: 1px solid #edebe9; padding: 24px; line-height: 1.6; }
+  .architecture-notes h2 { margin: 16px 0 8px; font-size: 18px; }
+  .architecture-notes p { max-width: 1100px; margin: 8px 0; }
+  .architecture-notes table { border-collapse: collapse; margin: 12px 0; width: 100%; max-width: 1100px; }
+  .architecture-notes th, .architecture-notes td { padding: 8px; border: 1px solid #edebe9; text-align: left; }
+  .architecture-notes caption { text-align: left; font-weight: 600; }
+  .architecture-notes code { overflow-wrap: anywhere; }
+  @media print {
+    .header-right, .toolbar, .zoom-indicator, .status-bar, .sidebar { display: none; }
+    .container { height: 70vh; min-height: 0; }
+    .architecture-notes { padding: 0; }
+    .architecture-notes tr { break-inside: avoid; }
+  }
 
   .canvas-area {
     flex: 1; position: relative; overflow: hidden;
@@ -157,12 +169,12 @@
   </div>
   <div>
     <h1>Rakathon – nasazené Azure prostředí s Microsoft Foundry</h1>
-    <div class="meta">Azure Architecture &middot; 2026-10-07 23:03</div>
+    <div class="meta">Azure Architecture &middot; ověřený snapshot 2026-10-14</div>
   </div>
   <div class="header-right">
-    <div class="stat"><b>16</b> Services</div>
-    <div class="stat"><b>0</b> Private Endpoints</div>
-    <div class="stat"><b>18</b> Connections</div>
+    <div class="stat"><b id="node-count">28</b> Nodes</div>
+    <div class="stat"><b id="private-count">0</b> Private Endpoints</div>
+    <div class="stat"><b id="edge-count">35</b> Connections</div>
   </div>
 </div>
 
@@ -177,7 +189,9 @@
       <button class="tool-btn" onclick="textBigger()" title="Bigger text" style="font-size:13px;">A+</button>
       <button class="tool-btn" onclick="textSmaller()" title="Smaller text" style="font-size:10px;">A&minus;</button>
       <div class="tool-sep"></div>
-      <button class="tool-btn" onclick="downloadPNG()" title="Download PNG">&#128247; PNG</button>
+      <button class="tool-btn" onclick="downloadPNG()" title="Download PNG">PNG</button>
+      <button class="tool-btn" onclick="window.print()" title="Print or save as PDF">PDF</button>
+      <a class="tool-btn" href="#architecture-notes">Popis a zdroje</a>
     </div>
     <div class="zoom-indicator" id="zoom-level">100%</div>
     <svg id="canvas">
@@ -217,11 +231,970 @@
   </div>
 </div>
 
+<section class="architecture-notes" id="architecture-notes" aria-labelledby="architecture-heading">
+  <h2 id="architecture-heading">Aktuální nasazení a hranice přístupu</h2>
+  <p>Inventář a konfigurace Azure ověřeny 2026-10-14 v <code>rg-rakathon-setup</code>
+    a <code>rg-rakathon-shared</code>; týmová resource group je aktuálně <code>rg-team01</code>.
+    APIM subscription <code>team01</code> je aktivní, provozní <code>ops-test</code> je suspendovaná.
+    Jde o snapshot, nikoli živý monitor. Uzly zahrnují také aktéry, deploymenty a seskupené služby,
+    takže jejich počet není počet Azure resources. Starší diagramy jsou historické návrhy.</p>
+  <p>Terraform má dvě oddělené části <code>setup</code> a <code>shared</code> se state
+    <code>setup.tfstate</code> a <code>shared.tfstate</code> v privátním containeru
+    <code>tfstate</code> účtu <code>strakathontfn7ygoe</code>. Týmové účty, resource groups,
+    RBAC a APIM subscriptions vytvářejí skripty <code>create-team-users</code>, nikoli
+    shared Terraform. Tým má Contributor jen na vlastní RG a Storage Blob Data Reader
+    na sdílené RG; nemá přímý přístup k modelům Foundry.</p>
+  <h2>Portál odděluje přihlášení od přístupu k modelům</h2>
+  <p><code>swa-rakathon-q7146n</code> používá Standard v East US 2 a single-tenant
+    Entra Easy Auth. Trasa <code>/*</code> vyžaduje <code>authenticated</code>;
+    <code>navigationFallback</code> se nepoužívá. Statický katalog vzniká lokálním read-only
+    exportem modelů a metadat blobů a publikuje se s webem; neobsahuje klíče ani SAS.
+    Prohlížeč nespravuje Azure infrastrukturu. Návody SWA, ACA a IRIS jsou příkazy
+    pro ruční spuštění v týmové RG, nikoli předem nasazené sdílené služby.</p>
+  <p>Připojená <code>func-rakathon-key-q7146n</code> má v Azure zaregistrované tři GET routes.
+    Běží na Linux Consumption Y1 s Node 22 ve Sweden Central. Podle aplikačního kódu
+    <code>/api/my-key</code> vrací pouze klíč vlastní subscription odvozené z UPN
+    <code>teamNN</code>; <code>/api/data-link?name=&lt;blob&gt;</code> ověří blob a vrátí
+    stabilní privátní URL a pětiminutový read-only user-delegation SAS.
+    <code>/api/spend</code> dovoluje přístup přihlášeným účtům mimo <code>teamNN</code>
+    a týmům vrací 403; není to zvláštní role organizátora. Easy Auth chrání také
+    přímý Function endpoint mimo SWA. Odpovědi API mají <code>no-store</code>.
+    Ověření registrace routes nenahrazuje end-to-end test přihlášené relace.</p>
+  <p>Managed identity Function má custom roli pro čtení APIM subscriptions a jejich
+    klíčů na APIM, Data Download Broker na datovém Storage a Log Analytics Reader
+    pouze na gateway workspace. Consumption runtime používá oddělený
+    <code>stfnrakathonq7146n</code> se shared keys; výjimka neplatí pro data ani Terraform state.</p>
+  <h2>APIM je jediná týmová cesta k osmi modelům</h2>
+  <p><code>apim-rakathon-q7146n</code> je BasicV2 s jednou jednotkou a produktem
+    <code>hackathon</code>. Klient volá <code>https://apim-rakathon-q7146n.azure-api.net/openai/v1</code>
+    s klíčem vlastní subscription v hlavičce <code>api-key</code>. APIM používá managed
+    identity s rolí Foundry User na <code>ais-rakathon-q7146n</code>; local/key autentizace
+    Foundry je vypnutá. Project <code>rakathon-project</code> i modelové deploymenty
+    jsou pod Foundry accountem, nikoli deploymenty pod projectem.</p>
+  <p>Gateway má pouze explicitní operace: POST <code>/chat/completions</code>,
+    <code>/responses</code>, <code>/images/generations</code>; GET <code>/models</code>;
+    GET a DELETE <code>/responses/{response_id}</code>. Ostatní cesty vracejí 404.
+    Terraform nastavuje na tým 200 000 tokenů/min, 4 000 000 tokenů/den a
+    30 požadavků na obrázky/min. Podpora jednotlivých API závisí na modelu;
+    ne každý deployment podporuje Responses nebo obrázky.</p>
+  <table>
+    <caption>Modelové deploymenty v Azure; všechny ve stavu Succeeded k 2026-10-14</caption>
+    <thead><tr><th scope="col">Deployment</th><th scope="col">Model / verze</th><th scope="col">SKU</th><th scope="col">Kapacita</th></tr></thead>
+    <tbody>
+      <tr><td>gpt-6-1-sol-dz-eu</td><td>gpt-6.1-sol / 2026-09-29</td><td>DataZoneStandard</td><td>3333</td></tr>
+      <tr><td>gpt-6-luna-dz-eu</td><td>gpt-6-luna / 2026-09-22</td><td>DataZoneStandard</td><td>3333</td></tr>
+      <tr><td>grok-4-7-global</td><td>grok-4.7 / 1</td><td>GlobalStandard</td><td>10000</td></tr>
+      <tr><td>gpt-6-astra-global</td><td>gpt-6-astra / 2026-09-03</td><td>GlobalStandard</td><td>10000</td></tr>
+      <tr><td>deepseek-v4-pro-global</td><td>DeepSeek-V4-Pro / 2026-04-23</td><td>GlobalStandard</td><td>10000</td></tr>
+      <tr><td>kimi-k2-7-code-global</td><td>Kimi-K2.7-Code / 2026-06-12</td><td>GlobalStandard</td><td>2000</td></tr>
+      <tr><td>mai-thinking-1-global</td><td>MAI-Thinking-1 / 2026-06-01</td><td>GlobalStandard</td><td>1500</td></tr>
+      <tr><td>mai-image-2-5-global</td><td>MAI-Image-2.5 / 2026-06-02</td><td>GlobalStandard</td><td>10 requests/min</td></tr>
+    </tbody>
+  </table>
+  <p>Kapacita textových deploymentů je hodnota Azure SKU, nikoli počet requests/min;
+    jednotky a limity závisejí na modelu. DataZoneStandard používá EU Data Zone,
+    GlobalStandard globální zpracování. Sdílená kapacita deploymentu není týmový limit APIM.</p>
+  <h2>Nákladový job suspenduje přístup; obnova je ruční</h2>
+  <p>APIM zapisuje gateway a LLM diagnostiku do <code>log-rakathon-q7146n</code>
+    (retence 30 dní). KQL funkce <code>HackathonRequests()</code>, <code>HackathonUsage()</code>,
+    <code>HackathonCostStatus()</code> a <code>HackathonCostConfig()</code> sdílejí
+    odhad ceny a rozpočty s workbookem a API spend. Okno začíná
+    <code>2026-10-10T00:00:00Z</code>. Jde pouze o odhad ze zaznamenaných úspěšných
+    APIM požadavků, nikoli fakturu Azure; nezahrnuje hosting APIM ani ostatní infrastrukturu,
+    cache slevy a přesné účtování obrázků.</p>
+  <p><code>logic-rakathon-costjob</code> je Enabled a každých pět minut s managed identity
+    čte KQL a APIM subscriptions. Vynucování je zapnuté: tým se suspenduje od 1 000 USD;
+    při celkových 4 800 USD se suspendují všechny aktivní týmové subscriptions
+    (rozpočet 5 000 USD minus rezerva 200 USD). Celková spotřeba zahrnuje i provozní
+    subscriptions, ty se však automaticky nesuspendují. Snapshoty a potvrzené revoke akce
+    zapisuje Logs Ingestion API přes <code>dce-rakathon-cost</code> a
+    <code>dcr-rakathon-cost</code> do <code>CostControl_CL</code>.</p>
+  <p>Pět Azure Monitor scheduled-query alerts nad workspace používá
+    <code>ag-rakathon-budget</code>: team/overall warn při 90 %, team/overall revoked
+    po záznamu revoke a job-stalled bez snapshotu 20 minut. Logic App neposílá alerty
+    přímo. Při selhání LAW je job fail-open; blokace není okamžitá. Job čte nejvýše
+    100 subscriptions. Správce nejprve upraví překročený rozpočet a potom obnoví
+    <code>state=active</code> skriptem <code>set-team-access.sh</code>; job sám neobnovuje
+    přístup a nezastaví účtování prostředků v týmové RG.</p>
+  <h2>Veřejné endpointy nejsou anonymní přístup</h2>
+  <p>Nasazené Foundry má veřejný síťový přístup Enabled a outbound restriction vypnutou;
+    Terraform defaults jsou opačné, místní konfigurace je explicitně přepisuje.
+    Datový <code>strakathondataq7146n</code> i state Storage mají veřejnou síť Enabled,
+    firewall Allow, shared keys vypnuté a anonymní Blob přístup vypnutý.
+    Container <code>data</code> je privátní. Stabilní Blob URL vyžaduje Entra data-plane
+    oprávnění; dočasný SAS je bearer credential a nesmí se publikovat.
+    Ve sdílené ani setup RG nejsou VNet nebo private endpoints.</p>
+  <h2>Zdroje a rozsah ověření</h2>
+  <p>Read-only Azure inventář, model deploymenty, síťová nastavení, SWA linked backend,
+    Function routes, APIM operations/subscriptions a nasazené KQL/Logic App konfigurace.
+    Azure inventář shared RG zahrnuje také pomocnou action group
+    <code>Application Insights Smart Detection</code>; není součástí rozpočtového toku
+    a neznamená nasazenou Application Insights komponentu.</p>
+  <p>Implementace:
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/main.tf">Foundry a Storage</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/gateway.tf">APIM a diagnostika</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/portal.tf">SWA a Entra</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/my_key.tf">Function hosting a RBAC</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/cost_control.tf">KQL, ingest, job a alerty</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/shared/workbook.tf">workbook</a>,
+    <a href="https://github.com/michalmar/rakathon-env/tree/main/infra/rakathon-env/functions/my-key/src">Function autorizace a API</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/web/README.md">portál a katalog</a>,
+    <a href="https://github.com/michalmar/rakathon-env/blob/main/infra/rakathon-env/docs/cost-control.md">nákladový runbook</a>.
+    Změna dokumentu nenasazuje ani nemění Azure prostředky.</p>
+</section>
+
 <script>
-const NODES = [{"id": "local-operator", "name": "Lok\u00e1ln\u00ed spr\u00e1vce Terraformu", "type": "user", "sku": "", "private": false, "details": ["Terraform k\u00f3d je pouze v tomto Git repository", "Nasazen\u00ed z lok\u00e1ln\u00edho po\u010d\u00edta\u010de", "Azure CLI profil: AZURE_CONFIG_DIR=$HOME/.azure-rak"], "subscription": "", "resourceGroup": "", "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "External"}, {"id": "tfstate", "name": "Terraform state Storage", "type": "storage", "sku": "Standard_LRS", "private": false, "details": ["Resource group: rg-rakathon-setup", "Account: strakathontfn7ygoe", "Container: tfstate", "Remote states: setup.tfstate a shared.tfstate"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=", "color": "#0078D4", "bg": "#E8F4FD", "category": "Data"}, {"id": "shareddata", "name": "Sd\u00edlen\u00fd Storage", "type": "storage", "sku": "Standard_LRS", "private": false, "details": ["Resource group: rg-rakathon-shared", "Account: strakathondataq7146n", "Container: data", "Public endpoint + Entra ID/RBAC"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=", "color": "#0078D4", "bg": "#E8F4FD", "category": "Data"}, {"id": "foundry", "name": "Microsoft Foundry: ais-rakathon-q7146n", "type": "ai_foundry", "sku": "S0", "private": false, "details": ["Resource group: rg-rakathon-shared", "Region: Sweden Central", "Provisioning: Succeeded", "Public access enabled", "Local/key authentication disabled: \u017e\u00e1dn\u00fd sd\u00edlen\u00fd kl\u00ed\u010d, modely jen p\u0159es APIM (MI role Foundry User)"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"10\" width=\"36\" height=\"28\" rx=\"4\" fill=\"#0078D4\"/><rect x=\"12\" y=\"16\" width=\"10\" height=\"8\" rx=\"2\" fill=\"white\" opacity=\"0.9\"/><rect x=\"26\" y=\"16\" width=\"10\" height=\"8\" rx=\"2\" fill=\"white\" opacity=\"0.9\"/><rect x=\"12\" y=\"27\" width=\"24\" height=\"5\" rx=\"2\" fill=\"white\" opacity=\"0.6\"/>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC02YjgzODBjMy0wZWU1LTRjNDQtOTJhMi1mMTg1YzgyZGI2YmEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIiIHgxPSItNjAzLjU2MyIgeTE9Ii0yMTguMzc4IiB4Mj0iLTYwNi42IiB5Mj0iLTIwNi4yMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSg2MTcuMTI2IC0yMDUuNzU4KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzcxMjU3NSIgLz48c3RvcCBvZmZzZXQ9Ii4wOSIgc3RvcC1jb2xvcj0iIzlhMjg4NCIgLz48c3RvcCBvZmZzZXQ9Ii4xOCIgc3RvcC1jb2xvcj0iI2JmMmM5MiIgLz48c3RvcCBvZmZzZXQ9Ii4yNyIgc3RvcC1jb2xvcj0iI2RhMmU5YyIgLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iI2ViMzBhMiIgLz48c3RvcCBvZmZzZXQ9Ii40IiBzdG9wLWNvbG9yPSIjZjEzMWE1IiAvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlYzMwYTMiIC8+PHN0b3Agb2Zmc2V0PSIuNjEiIHN0b3AtY29sb3I9IiNkZjJmOWUiIC8+PHN0b3Agb2Zmc2V0PSIuNzIiIHN0b3AtY29sb3I9IiNjOTJkOTYiIC8+PHN0b3Agb2Zmc2V0PSIuODMiIHN0b3AtY29sb3I9IiNhYTJhOGEiIC8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM4MzI2N2MiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzEyNTc1IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWM0YTJmNjI3LWQ3MzAtNDQ3ZS05MTUyLTYyMDA5YzY0YzM2MSIgeDE9Ii02MDIuNDEyIiB5MT0iLTIwNi4wMjUiIHgyPSItNjAyLjQxMiIgeTI9Ii0yMjMuMTc1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA4IiBzdG9wLWNvbG9yPSIjYjE3YmQ1IiAvPjxzdG9wIG9mZnNldD0iLjE5IiBzdG9wLWNvbG9yPSIjODc3OGRiIiAvPjxzdG9wIG9mZnNldD0iLjMiIHN0b3AtY29sb3I9IiM2Mjc2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIuNDEiIHN0b3AtY29sb3I9IiM0NTc0ZTUiIC8+PHN0b3Agb2Zmc2V0PSIuNTQiIHN0b3AtY29sb3I9IiMyZTcyZTgiIC8+PHN0b3Agb2Zmc2V0PSIuNjciIHN0b3AtY29sb3I9IiMxZDcxZWIiIC8+PHN0b3Agb2Zmc2V0PSIuODEiIHN0b3AtY29sb3I9IiMxNDcxZWMiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTE3MWVkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YyIgeDE9Ii02MDMuNDM4IiB5MT0iLTIwNi40MTQiIHgyPSItNjE0LjgwNyIgeTI9Ii0yMjQuNjQ0IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA1IiBzdG9wLWNvbG9yPSIjYjc3YmQ0IiAvPjxzdG9wIG9mZnNldD0iLjExIiBzdG9wLWNvbG9yPSIjOTA3OWRhIiAvPjxzdG9wIG9mZnNldD0iLjE4IiBzdG9wLWNvbG9yPSIjNmU3N2RmIiAvPjxzdG9wIG9mZnNldD0iLjI1IiBzdG9wLWNvbG9yPSIjNTE3NWUzIiAvPjxzdG9wIG9mZnNldD0iLjMzIiBzdG9wLWNvbG9yPSIjMzk3M2U3IiAvPjxzdG9wIG9mZnNldD0iLjQyIiBzdG9wLWNvbG9yPSIjMjc3MmU5IiAvPjxzdG9wIG9mZnNldD0iLjU0IiBzdG9wLWNvbG9yPSIjMWE3MWViIiAvPjxzdG9wIG9mZnNldD0iLjY4IiBzdG9wLWNvbG9yPSIjMTM3MWVjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzExNzFlZCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMTIuMDYxLjAxMmMuNTM0LDAsMS4wMDguNDAxLDEuMTc4Ljk4NHMxLjE2Niw0LjE5LDEuMTY2LDQuMTl2Ny4xNjZoLTMuNjA3bC4wNzMtMTIuMzUyaDEuMTl2LjAxMloiIGZpbGw9InVybCgjdXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIpIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS13aWR0aD0iMCIgLz48cGF0aCBkPSJtMTcuMzU2LDUuNjExYzAtLjI1NS0uMjA2LS40NDktLjQ0OS0uNDQ5aC0yLjEyNmMtMS40OTQsMC0yLjcwOSwxLjIxNS0yLjcwOSwyLjcwOXY0LjQ5NGgyLjU3NWMxLjQ5NCwwLDIuNzA5LTEuMjE1LDIuNzA5LTIuNzA5di00LjA0NVoiIGZpbGw9InVybCgjdXVpZC1jNGEyZjYyNy1kNzMwLTQ0N2UtOTE1Mi02MjAwOWM2NGMzNjEpIiBzdHJva2Utd2lkdGg9IjAiIC8+PHBhdGggZD0ibTEyLjA2MS4wMTJjLS40MTMsMC0uNzQxLjMyOC0uNzQxLjc0MWwtLjA3MywxMy42NGMwLDEuOTkyLTEuNjE1LDMuNjA3LTMuNjA3LDMuNjA3SDEuMDkzYy0uMzE2LDAtLjUyMi0uMzA0LS40MjUtLjU5NUw1LjkxNSwyLjQyOUM2LjQyNS45ODQsNy43ODUuMDEyLDkuMzE2LjAxMmgyLjc1Ny0uMDEyWiIgZmlsbD0idXJsKCN1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YykiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==", "color": "#0078D4", "bg": "#E8F4FD", "category": "AI"}, {"id": "foundry-project", "name": "Foundry project: rakathon-project", "type": "ai_hub", "sku": "", "private": false, "details": ["Provisioning: Succeeded", "System-assigned managed identity"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"10\" width=\"36\" height=\"28\" rx=\"4\" fill=\"#0078D4\"/><circle cx=\"24\" cy=\"24\" r=\"8\" fill=\"white\" opacity=\"0.9\"/><circle cx=\"24\" cy=\"24\" r=\"4\" fill=\"#0078D4\"/>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC02YjgzODBjMy0wZWU1LTRjNDQtOTJhMi1mMTg1YzgyZGI2YmEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIiIHgxPSItNjAzLjU2MyIgeTE9Ii0yMTguMzc4IiB4Mj0iLTYwNi42IiB5Mj0iLTIwNi4yMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSg2MTcuMTI2IC0yMDUuNzU4KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzcxMjU3NSIgLz48c3RvcCBvZmZzZXQ9Ii4wOSIgc3RvcC1jb2xvcj0iIzlhMjg4NCIgLz48c3RvcCBvZmZzZXQ9Ii4xOCIgc3RvcC1jb2xvcj0iI2JmMmM5MiIgLz48c3RvcCBvZmZzZXQ9Ii4yNyIgc3RvcC1jb2xvcj0iI2RhMmU5YyIgLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iI2ViMzBhMiIgLz48c3RvcCBvZmZzZXQ9Ii40IiBzdG9wLWNvbG9yPSIjZjEzMWE1IiAvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlYzMwYTMiIC8+PHN0b3Agb2Zmc2V0PSIuNjEiIHN0b3AtY29sb3I9IiNkZjJmOWUiIC8+PHN0b3Agb2Zmc2V0PSIuNzIiIHN0b3AtY29sb3I9IiNjOTJkOTYiIC8+PHN0b3Agb2Zmc2V0PSIuODMiIHN0b3AtY29sb3I9IiNhYTJhOGEiIC8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM4MzI2N2MiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzEyNTc1IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWM0YTJmNjI3LWQ3MzAtNDQ3ZS05MTUyLTYyMDA5YzY0YzM2MSIgeDE9Ii02MDIuNDEyIiB5MT0iLTIwNi4wMjUiIHgyPSItNjAyLjQxMiIgeTI9Ii0yMjMuMTc1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA4IiBzdG9wLWNvbG9yPSIjYjE3YmQ1IiAvPjxzdG9wIG9mZnNldD0iLjE5IiBzdG9wLWNvbG9yPSIjODc3OGRiIiAvPjxzdG9wIG9mZnNldD0iLjMiIHN0b3AtY29sb3I9IiM2Mjc2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIuNDEiIHN0b3AtY29sb3I9IiM0NTc0ZTUiIC8+PHN0b3Agb2Zmc2V0PSIuNTQiIHN0b3AtY29sb3I9IiMyZTcyZTgiIC8+PHN0b3Agb2Zmc2V0PSIuNjciIHN0b3AtY29sb3I9IiMxZDcxZWIiIC8+PHN0b3Agb2Zmc2V0PSIuODEiIHN0b3AtY29sb3I9IiMxNDcxZWMiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTE3MWVkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YyIgeDE9Ii02MDMuNDM4IiB5MT0iLTIwNi40MTQiIHgyPSItNjE0LjgwNyIgeTI9Ii0yMjQuNjQ0IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA1IiBzdG9wLWNvbG9yPSIjYjc3YmQ0IiAvPjxzdG9wIG9mZnNldD0iLjExIiBzdG9wLWNvbG9yPSIjOTA3OWRhIiAvPjxzdG9wIG9mZnNldD0iLjE4IiBzdG9wLWNvbG9yPSIjNmU3N2RmIiAvPjxzdG9wIG9mZnNldD0iLjI1IiBzdG9wLWNvbG9yPSIjNTE3NWUzIiAvPjxzdG9wIG9mZnNldD0iLjMzIiBzdG9wLWNvbG9yPSIjMzk3M2U3IiAvPjxzdG9wIG9mZnNldD0iLjQyIiBzdG9wLWNvbG9yPSIjMjc3MmU5IiAvPjxzdG9wIG9mZnNldD0iLjU0IiBzdG9wLWNvbG9yPSIjMWE3MWViIiAvPjxzdG9wIG9mZnNldD0iLjY4IiBzdG9wLWNvbG9yPSIjMTM3MWVjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzExNzFlZCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMTIuMDYxLjAxMmMuNTM0LDAsMS4wMDguNDAxLDEuMTc4Ljk4NHMxLjE2Niw0LjE5LDEuMTY2LDQuMTl2Ny4xNjZoLTMuNjA3bC4wNzMtMTIuMzUyaDEuMTl2LjAxMloiIGZpbGw9InVybCgjdXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIpIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS13aWR0aD0iMCIgLz48cGF0aCBkPSJtMTcuMzU2LDUuNjExYzAtLjI1NS0uMjA2LS40NDktLjQ0OS0uNDQ5aC0yLjEyNmMtMS40OTQsMC0yLjcwOSwxLjIxNS0yLjcwOSwyLjcwOXY0LjQ5NGgyLjU3NWMxLjQ5NCwwLDIuNzA5LTEuMjE1LDIuNzA5LTIuNzA5di00LjA0NVoiIGZpbGw9InVybCgjdXVpZC1jNGEyZjYyNy1kNzMwLTQ0N2UtOTE1Mi02MjAwOWM2NGMzNjEpIiBzdHJva2Utd2lkdGg9IjAiIC8+PHBhdGggZD0ibTEyLjA2MS4wMTJjLS40MTMsMC0uNzQxLjMyOC0uNzQxLjc0MWwtLjA3MywxMy42NGMwLDEuOTkyLTEuNjE1LDMuNjA3LTMuNjA3LDMuNjA3SDEuMDkzYy0uMzE2LDAtLjUyMi0uMzA0LS40MjUtLjU5NUw1LjkxNSwyLjQyOUM2LjQyNS45ODQsNy43ODUuMDEyLDkuMzE2LjAxMmgyLjc1Ny0uMDEyWiIgZmlsbD0idXJsKCN1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YykiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==", "color": "#0078D4", "bg": "#E8F4FD", "category": "AI"}, {"id": "gpt-sol", "name": "GPT 6.1 Sol", "type": "openai", "sku": "DataZoneStandard", "private": false, "details": ["Deployment: gpt-6-1-sol-dz-eu", "Version: 2026-09-29", "EU Data Zone", "Capacity: 3333/3333", "Provisioning: Succeeded"], "subscription": "", "resourceGroup": "", "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1hZGJkYWU4ZS01YTQxLTQ2ZDEtOGMxOC1hYTczY2RiZmVlMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxyYWRpYWxHcmFkaWVudCBpZD0idXVpZC0yYTc0MDdhYS1iNzg3LTQ4ZGQtYTk2YS0wZDgxYWI2ZTkzYmIiIGN4PSItNjcuOTgxIiBjeT0iNzkzLjE5OSIgcj0iLjQ1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNzkzOS4wMyAyMDM2OC4wMjkpIHJvdGF0ZSg0NSkgc2NhbGUoMjUuMDkxIC0zNC4xNDkpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjODNiOWY5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMCwyLjd2MTIuNmMwLDEuNDkxLDEuMjA5LDIuNywyLjcsMi43aDEyLjZjMS40OTEsMCwyLjctMS4yMDksMi43LTIuN1YyLjdjMC0xLjQ5MS0xLjIwOS0yLjctMi43LTIuN0gyLjdDMS4yMDksMCwwLDEuMjA5LDAsMi43Wk0xMC44LDB2My42YzAsMy45NzYsMy4yMjQsNy4yLDcuMiw3LjJoLTMuNmMtMy45NzYsMC03LjE5OSwzLjIyMi03LjIsNy4xOTh2LTMuNTk4YzAtMy45NzYtMy4yMjQtNy4yLTcuMi03LjJoMy42YzMuOTc2LDAsNy4yLTMuMjI0LDcuMi03LjJaIiBmaWxsPSJ1cmwoI3V1aWQtMmE3NDA3YWEtYjc4Ny00OGRkLWE5NmEtMGQ4MWFiNmU5M2JiKSIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==", "color": "#0078D4", "bg": "#E8F4FD", "category": "AI"}, {"id": "gpt-luna", "name": "GPT 6 Luna", "type": "openai", "sku": "DataZoneStandard", "private": false, "details": ["Deployment: gpt-6-luna-dz-eu", "Version: 2026-09-22", "EU Data Zone", "Capacity: 3333/3333", "Provisioning: Succeeded"], "subscription": "", "resourceGroup": "", "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>", "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1hZGJkYWU4ZS01YTQxLTQ2ZDEtOGMxOC1hYTczY2RiZmVlMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxyYWRpYWxHcmFkaWVudCBpZD0idXVpZC0yYTc0MDdhYS1iNzg3LTQ4ZGQtYTk2YS0wZDgxYWI2ZTkzYmIiIGN4PSItNjcuOTgxIiBjeT0iNzkzLjE5OSIgcj0iLjQ1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNzkzOS4wMyAyMDM2OC4wMjkpIHJvdGF0ZSg0NSkgc2NhbGUoMjUuMDkxIC0zNC4xNDkpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjODNiOWY5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMCwyLjd2MTIuNmMwLDEuNDkxLDEuMjA5LDIuNywyLjcsMi43aDEyLjZjMS40OTEsMCwyLjctMS4yMDksMi43LTIuN1YyLjdjMC0xLjQ5MS0xLjIwOS0yLjctMi43LTIuN0gyLjdDMS4yMDksMCwwLDEuMjA5LDAsMi43Wk0xMC44LDB2My42YzAsMy45NzYsMy4yMjQsNy4yLDcuMiw3LjJoLTMuNmMtMy45NzYsMC03LjE5OSwzLjIyMi03LjIsNy4xOTh2LTMuNTk4YzAtMy45NzYtMy4yMjQtNy4yLTcuMi03LjJoMy42YzMuOTc2LDAsNy4yLTMuMjI0LDcuMi03LjJaIiBmaWxsPSJ1cmwoI3V1aWQtMmE3NDA3YWEtYjc4Ny00OGRkLWE5NmEtMGQ4MWFiNmU5M2JiKSIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==", "color": "#0078D4", "bg": "#E8F4FD", "category": "AI"}, {"id": "customer", "name": "Z\u00e1kazn\u00edk / spr\u00e1vce dat", "type": "user", "sku": "", "private": false, "details": ["Storage Blob Data Contributor na containeru data"], "subscription": "", "resourceGroup": "", "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "External"}, {"id": "teams", "name": "\u00da\u010dastn\u00edci (teamNN@tenant)", "type": "user", "sku": "", "private": false, "details": ["Entra u\u017eivatel teamNN, p\u0159ihl\u00e1\u0161en\u00ed p\u0159es TAP", "Port\u00e1l ukazuje jen jejich kl\u00ed\u010d; klient vol\u00e1 APIM kl\u00ed\u010dem teamNN"], "subscription": "", "resourceGroup": "", "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "External"}, {"id": "apim", "name": "APIM gateway (BasicV2)", "type": "apim", "sku": "BasicV2", "private": false, "details": ["BasicV2, produkt hackathon", "Subscription teamNN = kl\u00ed\u010d t\u00fdmu (hlavi\u010dka api-key)", "Limity token\u016f a obr\u00e1zk\u016f, metering do Log Analytics", "Suspended subscription = p\u0159\u00edstup zablokovan\u00fd (rozpo\u010det)"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">APIM</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Integration"}, {"id": "portal", "name": "Port\u00e1l: Static Web App (Standard)", "type": "static_web_app", "sku": "Standard", "private": false, "details": ["Easy Auth jen tenant Rakathon, /* pouze authenticated", "Statick\u00fd katalog model\u016f a soubor\u016f", "Sekce \u201eV\u00e1\u0161 API kl\u00ed\u010d\u201c vol\u00e1 /api/my-key"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">SWA</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Compute"}, {"id": "keyfunc", "name": "Function my-key: func-rakathon-key", "type": "function_app", "sku": "Y1", "private": false, "details": ["Linux Consumption, Node 22, p\u0159ipojen\u00e1 k SWA jako backend", "GET /api/my-key: UPN teamNN \u2192 APIM subscription teamNN \u2192 primaryKey", "MI + custom role (subscriptions/read, listSecrets/action)", "P\u0159\u00edm\u00fd p\u0159\u00edstup mimo SWA: 401 (Easy Auth)", "Cache-Control: no-store, kl\u00ed\u010d se neloguj\u00ed"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">FN</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Compute"}, {"id": "costjob", "name": "Logic App: logic-rakathon-costjob", "type": "logic_app", "sku": "", "private": false, "details": ["Ka\u017ed\u00fdch 5 min: spot\u0159eba z LAW \u00d7 cen\u00edk model\u016f", "Rozpo\u010det 1 000 USD/t\u00fdm, 5 000 USD celkem", "90 % varov\u00e1n\u00ed, 100 % suspend APIM subscription", "Metriky do vlastn\u00ed tabulky p\u0159es DCR"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LA</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Integration"}, {"id": "law", "name": "Log Analytics workspace (APIM logy)", "type": "log_analytics", "sku": "", "private": false, "details": ["Diagnostika APIM (gateway logs, tokeny)", "Vlastn\u00ed tabulka s n\u00e1klady (DCR)", "Ulo\u017een\u00e1 hled\u00e1n\u00ed requests / usage / status"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LAW</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Monitor"}, {"id": "alerts", "name": "Alerty + action group ag-rakathon-budget", "type": "monitor", "sku": "", "private": false, "details": ["E-mail p\u0159i 90 % a 100 % rozpo\u010dtu", "Alert, kdy\u017e p\u0159estane b\u011b\u017eet cost job"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">ALR</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Monitor"}, {"id": "workbook", "name": "Workbook: n\u00e1klady a rozpo\u010dty", "type": "monitor", "sku": "", "private": false, "details": ["Celek vs. 5 000 USD, t\u00fdmy vs. 1 000 USD", "T\u00fdm \u00d7 deployment, tokeny v \u010dase"], "subscription": "", "resourceGroup": "", "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">WB</text>", "icon_data_uri": "", "color": "#0078D4", "bg": "#E8F4FD", "category": "Monitor"}];
-const EDGES = [{"from": "local-operator", "to": "tfstate", "label": "Terraform remote state", "type": "data", "color": "#0F9D58", "dash": "0"}, {"from": "local-operator", "to": "shareddata", "label": "Spravuje shared infrastrukturu", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "local-operator", "to": "foundry", "label": "Spravuje Foundry a modely", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "foundry", "to": "foundry-project", "label": "Hostuje project", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "foundry-project", "to": "gpt-sol", "label": "Model deployment", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "foundry-project", "to": "gpt-luna", "label": "Model deployment", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "customer", "to": "shareddata", "label": "Nahr\u00e1v\u00e1 data", "type": "data", "color": "#0F9D58", "dash": "0"}, {"from": "teams", "to": "shareddata", "label": "\u010cte data", "type": "data", "color": "#0F9D58", "dash": "0"}, {"from": "teams", "to": "portal", "label": "P\u0159ihl\u00e1\u0161en\u00ed Entra ID (Easy Auth)", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "portal", "to": "keyfunc", "label": "GET /api/my-key (x-ms-client-principal)", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "keyfunc", "to": "apim", "label": "MI: \u010dte subscription teamNN a kl\u00ed\u010d", "type": "api", "color": "#D13438", "dash": "0"}, {"from": "teams", "to": "apim", "label": "OpenAI v1, hlavi\u010dka api-key (teamNN)", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "apim", "to": "foundry", "label": "MI Foundry User, bez sd\u00edlen\u00e9ho kl\u00ed\u010de", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "apim", "to": "law", "label": "Diagnostika a metering", "type": "data", "color": "#0F9D58", "dash": "0"}, {"from": "costjob", "to": "law", "label": "KQL: spot\u0159eba t\u00fdm\u016f", "type": "data", "color": "#0F9D58", "dash": "0"}, {"from": "costjob", "to": "apim", "label": "Suspend / obnova subscription", "type": "api", "color": "#D13438", "dash": "0"}, {"from": "costjob", "to": "alerts", "label": "Notifikace 90 % / 100 %", "type": "api", "color": "#0078D4", "dash": "0"}, {"from": "law", "to": "workbook", "label": "Data pro workbook", "type": "data", "color": "#0F9D58", "dash": "0"}];
+const NODES = [
+  {
+    "id": "local-operator",
+    "name": "Lokální správce Terraformu",
+    "type": "user",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Lokální Terraform setup/shared, remote state přes Entra ID",
+      "Read-only export katalogu a publikování webu; Function zip deploy",
+      "Skripty vytvářejí týmové účty, RG, RBAC a APIM subscriptions",
+      "Ruční restore APIM: set-team-access.sh teamNN on"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "External"
+  },
+  {
+    "id": "tfstate",
+    "name": "Terraform state Storage",
+    "type": "storage",
+    "sku": "Standard_LRS",
+    "private": false,
+    "details": [
+      "rg-rakathon-setup / strakathontfn7ygoe / tfstate",
+      "Oddělené setup.tfstate a shared.tfstate",
+      "Veřejná síť Enabled, firewall Allow (aktuální nasazení)",
+      "Entra ID; anonymní bloby i shared keys vypnuté"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Data"
+  },
+  {
+    "id": "shareddata",
+    "name": "Sdílený Storage",
+    "type": "storage",
+    "sku": "Standard_LRS",
+    "private": false,
+    "details": [
+      "rg-rakathon-shared / strakathondataq7146n / privátní data",
+      "Veřejná síť Enabled, firewall Allow (aktuální nasazení)",
+      "Entra ID/RBAC; anonymní bloby i shared keys vypnuté",
+      "Tým čte stabilní URL přes Entra nebo krátkodobý SAS z API"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Data"
+  },
+  {
+    "id": "foundry",
+    "name": "Microsoft Foundry: ais-rakathon-q7146n",
+    "type": "ai_foundry",
+    "sku": "S0",
+    "private": false,
+    "details": [
+      "rg-rakathon-shared / Sweden Central / S0 / Succeeded",
+      "Public access Enabled, outbound restriction vypnutá",
+      "Local/key authentication vypnutá",
+      "Týmy jen přes APIM; APIM MI má Foundry User",
+      "Hostuje project a osm account-scoped deploymentů"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"10\" width=\"36\" height=\"28\" rx=\"4\" fill=\"#0078D4\"/><rect x=\"12\" y=\"16\" width=\"10\" height=\"8\" rx=\"2\" fill=\"white\" opacity=\"0.9\"/><rect x=\"26\" y=\"16\" width=\"10\" height=\"8\" rx=\"2\" fill=\"white\" opacity=\"0.9\"/><rect x=\"12\" y=\"27\" width=\"24\" height=\"5\" rx=\"2\" fill=\"white\" opacity=\"0.6\"/>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC02YjgzODBjMy0wZWU1LTRjNDQtOTJhMi1mMTg1YzgyZGI2YmEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIiIHgxPSItNjAzLjU2MyIgeTE9Ii0yMTguMzc4IiB4Mj0iLTYwNi42IiB5Mj0iLTIwNi4yMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSg2MTcuMTI2IC0yMDUuNzU4KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzcxMjU3NSIgLz48c3RvcCBvZmZzZXQ9Ii4wOSIgc3RvcC1jb2xvcj0iIzlhMjg4NCIgLz48c3RvcCBvZmZzZXQ9Ii4xOCIgc3RvcC1jb2xvcj0iI2JmMmM5MiIgLz48c3RvcCBvZmZzZXQ9Ii4yNyIgc3RvcC1jb2xvcj0iI2RhMmU5YyIgLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iI2ViMzBhMiIgLz48c3RvcCBvZmZzZXQ9Ii40IiBzdG9wLWNvbG9yPSIjZjEzMWE1IiAvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlYzMwYTMiIC8+PHN0b3Agb2Zmc2V0PSIuNjEiIHN0b3AtY29sb3I9IiNkZjJmOWUiIC8+PHN0b3Agb2Zmc2V0PSIuNzIiIHN0b3AtY29sb3I9IiNjOTJkOTYiIC8+PHN0b3Agb2Zmc2V0PSIuODMiIHN0b3AtY29sb3I9IiNhYTJhOGEiIC8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM4MzI2N2MiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzEyNTc1IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWM0YTJmNjI3LWQ3MzAtNDQ3ZS05MTUyLTYyMDA5YzY0YzM2MSIgeDE9Ii02MDIuNDEyIiB5MT0iLTIwNi4wMjUiIHgyPSItNjAyLjQxMiIgeTI9Ii0yMjMuMTc1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA4IiBzdG9wLWNvbG9yPSIjYjE3YmQ1IiAvPjxzdG9wIG9mZnNldD0iLjE5IiBzdG9wLWNvbG9yPSIjODc3OGRiIiAvPjxzdG9wIG9mZnNldD0iLjMiIHN0b3AtY29sb3I9IiM2Mjc2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIuNDEiIHN0b3AtY29sb3I9IiM0NTc0ZTUiIC8+PHN0b3Agb2Zmc2V0PSIuNTQiIHN0b3AtY29sb3I9IiMyZTcyZTgiIC8+PHN0b3Agb2Zmc2V0PSIuNjciIHN0b3AtY29sb3I9IiMxZDcxZWIiIC8+PHN0b3Agb2Zmc2V0PSIuODEiIHN0b3AtY29sb3I9IiMxNDcxZWMiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTE3MWVkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YyIgeDE9Ii02MDMuNDM4IiB5MT0iLTIwNi40MTQiIHgyPSItNjE0LjgwNyIgeTI9Ii0yMjQuNjQ0IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA1IiBzdG9wLWNvbG9yPSIjYjc3YmQ0IiAvPjxzdG9wIG9mZnNldD0iLjExIiBzdG9wLWNvbG9yPSIjOTA3OWRhIiAvPjxzdG9wIG9mZnNldD0iLjE4IiBzdG9wLWNvbG9yPSIjNmU3N2RmIiAvPjxzdG9wIG9mZnNldD0iLjI1IiBzdG9wLWNvbG9yPSIjNTE3NWUzIiAvPjxzdG9wIG9mZnNldD0iLjMzIiBzdG9wLWNvbG9yPSIjMzk3M2U3IiAvPjxzdG9wIG9mZnNldD0iLjQyIiBzdG9wLWNvbG9yPSIjMjc3MmU5IiAvPjxzdG9wIG9mZnNldD0iLjU0IiBzdG9wLWNvbG9yPSIjMWE3MWViIiAvPjxzdG9wIG9mZnNldD0iLjY4IiBzdG9wLWNvbG9yPSIjMTM3MWVjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzExNzFlZCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMTIuMDYxLjAxMmMuNTM0LDAsMS4wMDguNDAxLDEuMTc4Ljk4NHMxLjE2Niw0LjE5LDEuMTY2LDQuMTl2Ny4xNjZoLTMuNjA3bC4wNzMtMTIuMzUyaDEuMTl2LjAxMloiIGZpbGw9InVybCgjdXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIpIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS13aWR0aD0iMCIgLz48cGF0aCBkPSJtMTcuMzU2LDUuNjExYzAtLjI1NS0uMjA2LS40NDktLjQ0OS0uNDQ5aC0yLjEyNmMtMS40OTQsMC0yLjcwOSwxLjIxNS0yLjcwOSwyLjcwOXY0LjQ5NGgyLjU3NWMxLjQ5NCwwLDIuNzA5LTEuMjE1LDIuNzA5LTIuNzA5di00LjA0NVoiIGZpbGw9InVybCgjdXVpZC1jNGEyZjYyNy1kNzMwLTQ0N2UtOTE1Mi02MjAwOWM2NGMzNjEpIiBzdHJva2Utd2lkdGg9IjAiIC8+PHBhdGggZD0ibTEyLjA2MS4wMTJjLS40MTMsMC0uNzQxLjMyOC0uNzQxLjc0MWwtLjA3MywxMy42NGMwLDEuOTkyLTEuNjE1LDMuNjA3LTMuNjA3LDMuNjA3SDEuMDkzYy0uMzE2LDAtLjUyMi0uMzA0LS40MjUtLjU5NUw1LjkxNSwyLjQyOUM2LjQyNS45ODQsNy43ODUuMDEyLDkuMzE2LjAxMmgyLjc1Ny0uMDEyWiIgZmlsbD0idXJsKCN1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YykiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "foundry-project",
+    "name": "Foundry project: rakathon-project",
+    "type": "ai_hub",
+    "sku": "",
+    "private": false,
+    "details": [
+      "rakathon-project / Succeeded / system-assigned managed identity",
+      "Project pod Foundry accountem; model deploymenty jsou také pod accountem"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"10\" width=\"36\" height=\"28\" rx=\"4\" fill=\"#0078D4\"/><circle cx=\"24\" cy=\"24\" r=\"8\" fill=\"white\" opacity=\"0.9\"/><circle cx=\"24\" cy=\"24\" r=\"4\" fill=\"#0078D4\"/>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC02YjgzODBjMy0wZWU1LTRjNDQtOTJhMi1mMTg1YzgyZGI2YmEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIiIHgxPSItNjAzLjU2MyIgeTE9Ii0yMTguMzc4IiB4Mj0iLTYwNi42IiB5Mj0iLTIwNi4yMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSg2MTcuMTI2IC0yMDUuNzU4KSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzcxMjU3NSIgLz48c3RvcCBvZmZzZXQ9Ii4wOSIgc3RvcC1jb2xvcj0iIzlhMjg4NCIgLz48c3RvcCBvZmZzZXQ9Ii4xOCIgc3RvcC1jb2xvcj0iI2JmMmM5MiIgLz48c3RvcCBvZmZzZXQ9Ii4yNyIgc3RvcC1jb2xvcj0iI2RhMmU5YyIgLz48c3RvcCBvZmZzZXQ9Ii4zNCIgc3RvcC1jb2xvcj0iI2ViMzBhMiIgLz48c3RvcCBvZmZzZXQ9Ii40IiBzdG9wLWNvbG9yPSIjZjEzMWE1IiAvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlYzMwYTMiIC8+PHN0b3Agb2Zmc2V0PSIuNjEiIHN0b3AtY29sb3I9IiNkZjJmOWUiIC8+PHN0b3Agb2Zmc2V0PSIuNzIiIHN0b3AtY29sb3I9IiNjOTJkOTYiIC8+PHN0b3Agb2Zmc2V0PSIuODMiIHN0b3AtY29sb3I9IiNhYTJhOGEiIC8+PHN0b3Agb2Zmc2V0PSIuOTUiIHN0b3AtY29sb3I9IiM4MzI2N2MiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzEyNTc1IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWM0YTJmNjI3LWQ3MzAtNDQ3ZS05MTUyLTYyMDA5YzY0YzM2MSIgeDE9Ii02MDIuNDEyIiB5MT0iLTIwNi4wMjUiIHgyPSItNjAyLjQxMiIgeTI9Ii0yMjMuMTc1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA4IiBzdG9wLWNvbG9yPSIjYjE3YmQ1IiAvPjxzdG9wIG9mZnNldD0iLjE5IiBzdG9wLWNvbG9yPSIjODc3OGRiIiAvPjxzdG9wIG9mZnNldD0iLjMiIHN0b3AtY29sb3I9IiM2Mjc2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIuNDEiIHN0b3AtY29sb3I9IiM0NTc0ZTUiIC8+PHN0b3Agb2Zmc2V0PSIuNTQiIHN0b3AtY29sb3I9IiMyZTcyZTgiIC8+PHN0b3Agb2Zmc2V0PSIuNjciIHN0b3AtY29sb3I9IiMxZDcxZWIiIC8+PHN0b3Agb2Zmc2V0PSIuODEiIHN0b3AtY29sb3I9IiMxNDcxZWMiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMTE3MWVkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YyIgeDE9Ii02MDMuNDM4IiB5MT0iLTIwNi40MTQiIHgyPSItNjE0LjgwNyIgeTI9Ii0yMjQuNjQ0IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDYxNy4xMjYgLTIwNS43NTgpIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZGE3ZWQwIiAvPjxzdG9wIG9mZnNldD0iLjA1IiBzdG9wLWNvbG9yPSIjYjc3YmQ0IiAvPjxzdG9wIG9mZnNldD0iLjExIiBzdG9wLWNvbG9yPSIjOTA3OWRhIiAvPjxzdG9wIG9mZnNldD0iLjE4IiBzdG9wLWNvbG9yPSIjNmU3N2RmIiAvPjxzdG9wIG9mZnNldD0iLjI1IiBzdG9wLWNvbG9yPSIjNTE3NWUzIiAvPjxzdG9wIG9mZnNldD0iLjMzIiBzdG9wLWNvbG9yPSIjMzk3M2U3IiAvPjxzdG9wIG9mZnNldD0iLjQyIiBzdG9wLWNvbG9yPSIjMjc3MmU5IiAvPjxzdG9wIG9mZnNldD0iLjU0IiBzdG9wLWNvbG9yPSIjMWE3MWViIiAvPjxzdG9wIG9mZnNldD0iLjY4IiBzdG9wLWNvbG9yPSIjMTM3MWVjIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzExNzFlZCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMTIuMDYxLjAxMmMuNTM0LDAsMS4wMDguNDAxLDEuMTc4Ljk4NHMxLjE2Niw0LjE5LDEuMTY2LDQuMTl2Ny4xNjZoLTMuNjA3bC4wNzMtMTIuMzUyaDEuMTl2LjAxMloiIGZpbGw9InVybCgjdXVpZC0wNTg3NmM3Mi04ZjI2LTQwZGEtOTk2ZS1hNDg4MTcyZWMwNzIpIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS13aWR0aD0iMCIgLz48cGF0aCBkPSJtMTcuMzU2LDUuNjExYzAtLjI1NS0uMjA2LS40NDktLjQ0OS0uNDQ5aC0yLjEyNmMtMS40OTQsMC0yLjcwOSwxLjIxNS0yLjcwOSwyLjcwOXY0LjQ5NGgyLjU3NWMxLjQ5NCwwLDIuNzA5LTEuMjE1LDIuNzA5LTIuNzA5di00LjA0NVoiIGZpbGw9InVybCgjdXVpZC1jNGEyZjYyNy1kNzMwLTQ0N2UtOTE1Mi02MjAwOWM2NGMzNjEpIiBzdHJva2Utd2lkdGg9IjAiIC8+PHBhdGggZD0ibTEyLjA2MS4wMTJjLS40MTMsMC0uNzQxLjMyOC0uNzQxLjc0MWwtLjA3MywxMy42NGMwLDEuOTkyLTEuNjE1LDMuNjA3LTMuNjA3LDMuNjA3SDEuMDkzYy0uMzE2LDAtLjUyMi0uMzA0LS40MjUtLjU5NUw1LjkxNSwyLjQyOUM2LjQyNS45ODQsNy43ODUuMDEyLDkuMzE2LjAxMmgyLjc1Ny0uMDEyWiIgZmlsbD0idXJsKCN1dWlkLTVhNGNmMjE1LTQ5MzItNGYxMi04YWYxLTFiNjgzM2RmMjU5YykiIGZpbGwtcnVsZT0iZXZlbm9kZCIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "gpt-sol",
+    "name": "gpt-6.1-sol",
+    "type": "openai",
+    "sku": "DataZoneStandard",
+    "private": false,
+    "details": [
+      "Deployment: gpt-6-1-sol-dz-eu",
+      "Version: 2026-09-29",
+      "EU Data Zone",
+      "Capacity: 3333 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1hZGJkYWU4ZS01YTQxLTQ2ZDEtOGMxOC1hYTczY2RiZmVlMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxyYWRpYWxHcmFkaWVudCBpZD0idXVpZC0yYTc0MDdhYS1iNzg3LTQ4ZGQtYTk2YS0wZDgxYWI2ZTkzYmIiIGN4PSItNjcuOTgxIiBjeT0iNzkzLjE5OSIgcj0iLjQ1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNzkzOS4wMyAyMDM2OC4wMjkpIHJvdGF0ZSg0NSkgc2NhbGUoMjUuMDkxIC0zNC4xNDkpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjODNiOWY5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMCwyLjd2MTIuNmMwLDEuNDkxLDEuMjA5LDIuNywyLjcsMi43aDEyLjZjMS40OTEsMCwyLjctMS4yMDksMi43LTIuN1YyLjdjMC0xLjQ5MS0xLjIwOS0yLjctMi43LTIuN0gyLjdDMS4yMDksMCwwLDEuMjA5LDAsMi43Wk0xMC44LDB2My42YzAsMy45NzYsMy4yMjQsNy4yLDcuMiw3LjJoLTMuNmMtMy45NzYsMC03LjE5OSwzLjIyMi03LjIsNy4xOTh2LTMuNTk4YzAtMy45NzYtMy4yMjQtNy4yLTcuMi03LjJoMy42YzMuOTc2LDAsNy4yLTMuMjI0LDcuMi03LjJaIiBmaWxsPSJ1cmwoI3V1aWQtMmE3NDA3YWEtYjc4Ny00OGRkLWE5NmEtMGQ4MWFiNmU5M2JiKSIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "gpt-luna",
+    "name": "gpt-6-luna",
+    "type": "openai",
+    "sku": "DataZoneStandard",
+    "private": false,
+    "details": [
+      "Deployment: gpt-6-luna-dz-eu",
+      "Version: 2026-09-22",
+      "EU Data Zone",
+      "Capacity: 3333 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1hZGJkYWU4ZS01YTQxLTQ2ZDEtOGMxOC1hYTczY2RiZmVlMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxyYWRpYWxHcmFkaWVudCBpZD0idXVpZC0yYTc0MDdhYS1iNzg3LTQ4ZGQtYTk2YS0wZDgxYWI2ZTkzYmIiIGN4PSItNjcuOTgxIiBjeT0iNzkzLjE5OSIgcj0iLjQ1IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKC0xNzkzOS4wMyAyMDM2OC4wMjkpIHJvdGF0ZSg0NSkgc2NhbGUoMjUuMDkxIC0zNC4xNDkpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjODNiOWY5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJtMCwyLjd2MTIuNmMwLDEuNDkxLDEuMjA5LDIuNywyLjcsMi43aDEyLjZjMS40OTEsMCwyLjctMS4yMDksMi43LTIuN1YyLjdjMC0xLjQ5MS0xLjIwOS0yLjctMi43LTIuN0gyLjdDMS4yMDksMCwwLDEuMjA5LDAsMi43Wk0xMC44LDB2My42YzAsMy45NzYsMy4yMjQsNy4yLDcuMiw3LjJoLTMuNmMtMy45NzYsMC03LjE5OSwzLjIyMi03LjIsNy4xOTh2LTMuNTk4YzAtMy45NzYtMy4yMjQtNy4yLTcuMi03LjJoMy42YzMuOTc2LDAsNy4yLTMuMjI0LDcuMi03LjJaIiBmaWxsPSJ1cmwoI3V1aWQtMmE3NDA3YWEtYjc4Ny00OGRkLWE5NmEtMGQ4MWFiNmU5M2JiKSIgc3Ryb2tlLXdpZHRoPSIwIiAvPjwvc3ZnPg==",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "customer",
+    "name": "Správce dat (volitelné RBAC)",
+    "type": "user",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Terraform podporuje Reader na Storage a Blob Data Contributor na data",
+      "Volitelné identity dle customer_data_contributor_object_ids; ne inventář osob"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "External"
+  },
+  {
+    "id": "teams",
+    "name": "Týmový účet teamNN",
+    "type": "user",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Entra uživatel a TAP vytvářené skriptem",
+      "Snapshot: team01 APIM subscription active, rg-team01 existuje",
+      "Contributor pouze vlastní RG; Blob Data Reader na shared RG",
+      "Žádný přímý Foundry přístup; vlastní APIM klíč"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "External"
+  },
+  {
+    "id": "apim",
+    "name": "Gateway apim-rakathon-q7146n",
+    "type": "apim",
+    "sku": "BasicV2_1",
+    "private": false,
+    "details": [
+      "Produkt hackathon; api-key = klíč týmové subscription",
+      "OpenAI v1; šest explicitních operací, žádný wildcard",
+      "Terraform: 200 000 TPM, 4M tokenů/den, 30 image calls/min na tým",
+      "MI Foundry User; diagnostika GatewayLogs + GatewayLlmLogs do LAW",
+      "Suspended subscription blokuje modely, nikoli týmovou infrastrukturu"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">APIM</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Integration"
+  },
+  {
+    "id": "portal",
+    "name": "SWA: swa-rakathon-q7146n",
+    "type": "static_web_app",
+    "sku": "Standard",
+    "private": false,
+    "details": [
+      "Standard / East US 2 / single-tenant Entra Easy Auth",
+      "/* authenticated; bez navigationFallback",
+      "Statický read-only export modelů a blob metadat, bez klíčů/SAS",
+      "Týmy: my-key + data-link; mimo teamNN: spend",
+      "Návody SWA/ACA/IRIS nic samy nenasazují"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">SWA</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Compute"
+  },
+  {
+    "id": "keyfunc",
+    "name": "Function: func-rakathon-key-q7146n",
+    "type": "function_app",
+    "sku": "Y1",
+    "private": false,
+    "details": [
+      "SWA linked backend / Linux Consumption / Node 22 / Sweden Central",
+      "GET /api/my-key: teamNN z UPN → vlastní APIM klíč",
+      "GET /api/data-link: read-only user-delegation SAS na 5 min + stabilní URL",
+      "GET /api/spend: přihlášené účty mimo teamNN; týmy 403",
+      "MI: APIM Team Key Reader, Data Download Broker, LAW Reader",
+      "Easy Auth i mimo SWA; API no-store"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">FN</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Compute"
+  },
+  {
+    "id": "costjob",
+    "name": "Logic App: logic-rakathon-costjob",
+    "type": "logic_app",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Enabled / enforcement zapnutý / každých 5 min",
+      "KQL spotřeba od 2026-10-10T00:00:00Z",
+      "1 000 USD/tým, 5 000 USD celkem; overall suspend od 4 800 USD",
+      "PATCH state=suspended pro aktivní team*; ops-* se nesuspendují",
+      "MI: APIM Service Contributor, LAW Reader, DCR Metrics Publisher",
+      "Snapshot/revoke přes DCE/DCR do CostControl_CL; bez auto-restore",
+      "LAW chyba = fail-open; nejvýše 100 subscriptions"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LA</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Integration"
+  },
+  {
+    "id": "law",
+    "name": "LAW: log-rakathon-q7146n",
+    "type": "log_analytics",
+    "sku": "PerGB2018",
+    "private": false,
+    "details": [
+      "Retence 30 dní / gateway + LLM diagnostika",
+      "HackathonRequests / Usage / CostStatus / CostConfig",
+      "CostControl_CL: snapshoty a potvrzené revoke akce",
+      "Odhad modelových nákladů, nikoli faktura Azure"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LAW</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Monitor"
+  },
+  {
+    "id": "alerts",
+    "name": "Alerty + action group ag-rakathon-budget",
+    "type": "monitor",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Pět scheduled-query rules čte LAW, nikoli přímé volání z jobu",
+      "team/overall warn od 90 %; team/overall revoked",
+      "job-stalled: žádný snapshot 20 min",
+      "Action group ag-rakathon-budget posílá e-mail"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">ALR</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Monitor"
+  },
+  {
+    "id": "workbook",
+    "name": "Workbook: náklady a rozpočty",
+    "type": "monitor",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Čte LAW/KQL, celkem vs. 5 000 USD (suspend od 4 800)",
+      "Týmy vs. 1 000 USD, tým × deployment, tokeny a akce jobu",
+      "Odhad ceny modelů; threshold není aktuální stav APIM"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">WB</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Monitor"
+  },
+  {
+    "id": "mai-image",
+    "name": "MAI-Image-2.5",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: mai-image-2-5-global",
+      "Version: 2026-06-02",
+      "Global processing",
+      "Capacity: 10 image requests/min",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "grok",
+    "name": "grok-4.7",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: grok-4-7-global",
+      "Version: 1",
+      "Global processing",
+      "Capacity: 10000 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "gpt-astra",
+    "name": "gpt-6-astra",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: gpt-6-astra-global",
+      "Version: 2026-09-03",
+      "Global processing",
+      "Capacity: 10000 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "mai-thinking",
+    "name": "MAI-Thinking-1",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: mai-thinking-1-global",
+      "Version: 2026-06-01",
+      "Global processing",
+      "Capacity: 1500 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek-V4-Pro",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: deepseek-v4-pro-global",
+      "Version: 2026-04-23",
+      "Global processing",
+      "Capacity: 10000 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi-K2.7-Code",
+    "type": "openai",
+    "sku": "GlobalStandard",
+    "private": false,
+    "details": [
+      "Deployment: kimi-k2-7-code-global",
+      "Version: 2026-06-12",
+      "Global processing",
+      "Capacity: 2000 (Azure SKU units)",
+      "Provisioning: Succeeded"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"24\" r=\"18\" fill=\"#0078D4\"/><text x=\"24\" y=\"30\" text-anchor=\"middle\" font-size=\"18\" fill=\"white\" font-weight=\"700\">AI</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "AI"
+  },
+  {
+    "id": "function-plan",
+    "name": "Plán: asp-rakathon-key-q7146n",
+    "type": "app_service",
+    "sku": "Y1",
+    "private": false,
+    "details": [
+      "Linux Consumption / Sweden Central",
+      "Hostuje Function backend"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">FN</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Compute"
+  },
+  {
+    "id": "function-storage",
+    "name": "Runtime: stfnrakathonq7146n",
+    "type": "storage",
+    "sku": "Standard_LRS",
+    "private": false,
+    "details": [
+      "Oddělený Storage pro Consumption runtime",
+      "Shared keys povolené; anonymní Blob přístup vypnutý",
+      "Neobsahuje sdílený container data ani Terraform state"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Data"
+  },
+  {
+    "id": "dce",
+    "name": "DCE: dce-rakathon-cost",
+    "type": "monitor",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Veřejný Logs Ingestion API endpoint",
+      "Job zapisuje snapshoty a revoke akce pomocí MI"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LAW</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Monitor"
+  },
+  {
+    "id": "dcr",
+    "name": "DCR: dcr-rakathon-cost",
+    "type": "monitor",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Custom-CostControl_CL → LAW CostControl_CL",
+      "Job MI: Monitoring Metrics Publisher na DCR"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"6\" y=\"8\" width=\"36\" height=\"32\" rx=\"5\" fill=\"#0078D4\"/><text x=\"24\" y=\"29\" font-size=\"11\" font-weight=\"700\" text-anchor=\"middle\" fill=\"#fff\" font-family=\"Segoe UI,Arial\">LAW</text>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Monitor"
+  },
+  {
+    "id": "nonteam",
+    "name": "Přihlášený účet mimo teamNN",
+    "type": "user",
+    "sku": "",
+    "private": false,
+    "details": [
+      "SWA single-tenant autentizace; nejde o zvláštní roli organizátora",
+      "GET /api/spend: stejné KQL + APIM roster, žádné klíče",
+      "SWA refresh 2 min; API cache 1 min; no-store"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<circle cx=\"24\" cy=\"16\" r=\"8\" fill=\"#0078D4\"/><path d=\"M10 42 Q10 30 24 30 Q38 30 38 42\" fill=\"#0078D4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "External"
+  },
+  {
+    "id": "team-rg",
+    "name": "Týmová RG: rg-team01",
+    "type": "resource_group",
+    "sku": "",
+    "private": false,
+    "details": [
+      "Vytvořena create-team-users, nikoli shared Terraform",
+      "team01: Contributor pouze zde",
+      "Vlastní testovací workloady; APIM suspend nezastaví jejich náklady"
+    ],
+    "subscription": "",
+    "resourceGroup": "",
+    "icon_svg": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\"/><rect x=\"8\" y=\"20\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.7\"/><rect x=\"8\" y=\"32\" width=\"32\" height=\"8\" rx=\"3\" fill=\"#0078D4\" opacity=\"0.4\"/>",
+    "icon_data_uri": "",
+    "color": "#0078D4",
+    "bg": "#E8F4FD",
+    "category": "Compute"
+  }
+];
+const EDGES = [
+  {
+    "from": "local-operator",
+    "to": "tfstate",
+    "label": "Entra: Terraform remote state",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "local-operator",
+    "to": "shareddata",
+    "label": "Terraform + čtení katalogu",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "local-operator",
+    "to": "foundry",
+    "label": "Terraform: account a deploymenty",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "local-operator",
+    "to": "portal",
+    "label": "Publikování statického katalogu",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "local-operator",
+    "to": "apim",
+    "label": "Ruční active / suspended",
+    "type": "security",
+    "color": "#E8A000",
+    "dash": "6,4"
+  },
+  {
+    "from": "foundry",
+    "to": "foundry-project",
+    "label": "Hostuje project",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "gpt-sol",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "gpt-luna",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "grok",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "gpt-astra",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "deepseek",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "kimi",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "mai-thinking",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "foundry",
+    "to": "mai-image",
+    "label": "Account-scoped deployment",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "customer",
+    "to": "shareddata",
+    "label": "Volitelný Blob Data Contributor",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "teams",
+    "to": "shareddata",
+    "label": "Entra nebo 5min SAS",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "teams",
+    "to": "team-rg",
+    "label": "Contributor jen vlastní RG",
+    "type": "security",
+    "color": "#E8A000",
+    "dash": "6,4"
+  },
+  {
+    "from": "teams",
+    "to": "portal",
+    "label": "Entra Easy Auth",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "nonteam",
+    "to": "portal",
+    "label": "Entra: přehled Náklady",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "portal",
+    "to": "keyfunc",
+    "label": "GET my-key / data-link / spend",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "keyfunc",
+    "to": "apim",
+    "label": "MI: vlastní klíč / spend roster",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "keyfunc",
+    "to": "shareddata",
+    "label": "MI: Blob read + delegation key",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "keyfunc",
+    "to": "law",
+    "label": "MI LAW Reader: spend KQL",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "function-plan",
+    "to": "keyfunc",
+    "label": "Hostuje Linux Function",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "keyfunc",
+    "to": "function-storage",
+    "label": "Runtime storage (shared key)",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "teams",
+    "to": "apim",
+    "label": "OpenAI v1 + týmový api-key",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "apim",
+    "to": "foundry",
+    "label": "MI Foundry User",
+    "type": "api",
+    "color": "#0078D4",
+    "dash": "0"
+  },
+  {
+    "from": "apim",
+    "to": "law",
+    "label": "Gateway + LLM diagnostika",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "costjob",
+    "to": "law",
+    "label": "MI LAW Reader: KQL",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "costjob",
+    "to": "apim",
+    "label": "MI: roster + pouze suspend",
+    "type": "security",
+    "color": "#E8A000",
+    "dash": "6,4"
+  },
+  {
+    "from": "costjob",
+    "to": "dce",
+    "label": "MI: snapshot / revoke ingest",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "dce",
+    "to": "dcr",
+    "label": "Logs Ingestion API / stream",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "dcr",
+    "to": "law",
+    "label": "Zápis CostControl_CL",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "law",
+    "to": "alerts",
+    "label": "Scheduled query → e-mail",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  },
+  {
+    "from": "law",
+    "to": "workbook",
+    "label": "KQL data pro workbook",
+    "type": "data",
+    "color": "#0F9D58",
+    "dash": "0"
+  }
+];
 const VNET_INFO = "";
-const HIERARCHY = [{"subscription": "Azure subscription 00000000-0000-0000-0000-000000000000", "resourceGroups": ["rg-rakathon-setup", "rg-rakathon-shared", "Budoucí: rg-rakathon-team-* (nenasazuje se nyní)"]}];
+const HIERARCHY = [];
+document.getElementById('node-count').textContent = NODES.length;
+document.getElementById('private-count').textContent = NODES.filter(n => n.type === 'pe').length;
+document.getElementById('edge-count').textContent = EDGES.length;
 
 // ── Node sizing ──
 const SVC_W = 180, SVC_H = 120;  // service node (icon above, name below) — 20% larger
@@ -2157,7 +3130,7 @@ function renderDiagram() {
     // Service type label below (not category — show actual service type name)
     if (!isPe) {
       const TYPE_LABELS = {
-        'ai_foundry': 'AI Foundry', 'openai': 'Azure OpenAI', 'search': 'AI Search', 'ai_search': 'AI Search',
+        'ai_foundry': 'Microsoft Foundry', 'openai': 'Foundry model', 'search': 'AI Search', 'ai_search': 'AI Search',
         'storage': 'Storage', 'adls': 'ADLS Gen2', 'keyvault': 'Key Vault', 'kv': 'Key Vault',
         'fabric': 'Fabric', 'databricks': 'Databricks', 'adf': 'Data Factory', 'data_factory': 'Data Factory',
         'sql_server': 'SQL Server', 'sql_database': 'SQL Database', 'cosmos_db': 'Cosmos DB',
@@ -2171,7 +3144,7 @@ function renderDiagram() {
         'devops': 'Azure DevOps', 'app_gateway': 'App Gateway',
         'iot_hub': 'IoT Hub', 'stream_analytics': 'Stream Analytics',
         'vpn_gateway': 'VPN Gateway', 'front_door': 'Front Door',
-        'ai_hub': 'AI Hub', 'firewall': 'Firewall',
+        'ai_hub': 'Foundry Project', 'firewall': 'Firewall', 'resource_group': 'Resource Group',
         'apim': 'API Management', 'static_web_app': 'Static Web App', 'logic_app': 'Logic App',
       };
       const typeLabel = TYPE_LABELS[node.type] || node.type;
