@@ -186,13 +186,14 @@ h3 {
   align-items: center;
   gap: 28px;
   min-height: 76px;
-  padding: 12px max(24px, calc((100vw - 1440px) / 2));
+  padding: 12px max(24px, calc((100vw - 1600px) / 2));
   border-bottom: 1px solid color-mix(in srgb, var(--cp-border) 84%, transparent);
   background: color-mix(in srgb, var(--cp-bg-elevated) 94%, transparent);
   backdrop-filter: blur(16px);
 }
 .brand {
   grid-area: brand;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   color: var(--cp-text);
@@ -231,6 +232,7 @@ h3 {
 }
 .nav-link {
   display: inline-flex;
+  flex-shrink: 0;
   min-width: 0;
   align-items: center;
   gap: 8px;
@@ -752,10 +754,8 @@ html[data-theme="dark"] .github-nav-logo { filter: invert(1); }
 .empty-state { padding: 26px !important; color: var(--cp-text-muted); text-align: center; }
 .error-screen > h1 { max-width: 20ch; color: var(--cp-text); }
 
-@media (max-width: 1600px) {
-  .sidebar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand access" "navigation navigation"; }
-  .navigation { width: 100%; justify-self: stretch; overflow-x: auto; justify-content: flex-start; }
-}
+.sidebar.sidebar-stacked { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand access" "navigation navigation"; row-gap: 12px; }
+.sidebar-stacked .navigation { width: 100%; justify-self: stretch; overflow-x: auto; justify-content: flex-start; }
 
 @media (max-width: 1060px) {
   .sidebar { gap: 16px; padding-inline: 22px; }

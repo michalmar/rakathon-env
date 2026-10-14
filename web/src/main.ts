@@ -531,7 +531,7 @@ function examplesSection(catalog: Catalog): HTMLElement {
   code(llm, "hello.py", pythonResponsesExample(catalog.gateway.endpoint));
   llm.append(element("p", "section-description",
     "Nejprve uložte druhý blok jako hello.py, potom spusťte první blok. Klíč neukládejte do zdrojů ani frontendových proměnných. HTTP 401/403: ověřte klíč a stav týmu; 429: limit nebo rozpočet. Windows: virtuální prostředí aktivujte přes .venv\\Scripts\\Activate.ps1 a proměnné nastavte pomocí $env:NAME."),
-    externalLink("Responses API ve Foundry", "https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses"));
+    externalLink("Responses API ve Foundry", "https://learn.microsoft.com/azure/foundry/openai/how-to/responses"));
 
   const swa = guide("Static Web Apps: nasazení vlastního webu",
     "Pro statický frontend (HTML/CSS/JS nebo sestavený Vite projekt). Vyžaduje Node.js/npm a týmovou resource group. Spusťte z kořene svého projektu; předpokládá npm run build a výstup dist. Název změňte pro svůj tým. Nenasazujte tímto příkladem účastnický portál.");
@@ -558,7 +558,7 @@ function examplesSection(catalog: Catalog): HTMLElement {
   ].join("\n"));
   swa.append(element("p", "section-description",
     "Bez nastavené autentizace je nový web veřejný. Neukládejte do dist klíče ani citlivá data. Pro vlastní Entra provider potřebujete Standard a konfiguraci route authorization. SWA nehostuje libovolný Python backend; pro něj použijte ACA. Nepoužívejte set -x ani --debug při práci s tokenem."),
-    externalLink("Nasazení pomocí SWA CLI", "https://azure.github.io/static-web-apps-cli/docs/cli/swa-deploy"));
+    externalLink("Nasazení pomocí SWA CLI", "https://learn.microsoft.com/azure/static-web-apps/static-web-apps-cli-deploy"));
 
   const aca = guide("ACA Sandbox: web, backend a jednorázový job",
     "Malé testovací Azure Container Apps prostředí ve vlastní týmové resource group, ne samostatná bezplatná sandbox služba. Pro web/API použijte Container App s HTTP ingress; pro úlohu bez webového serveru použijte Container Apps Job. Běžící prostředky a joby čerpají Azure rozpočet i po zablokování APIM klíče.");
@@ -591,8 +591,8 @@ function examplesSection(catalog: Catalog): HTMLElement {
     "Job používá prostředí vytvořené v prvním bloku; ukázkový image vypíše zprávu a skončí. Pro vlastní úlohu jej nahraďte svým image. Vlastní web/API musí naslouchat na 0.0.0.0 a na target portu. External ingress je veřejný HTTPS endpoint, nikoli automaticky chráněná aplikace; zapněte autentizaci před použitím neveřejných dat. Klíče patří do ACA secrets, ne do image ani frontendu. První start po škálování na nulu může být pomalejší."),
     element("p", "section-description",
       "Pokud CLI hlásí neregistrovaného resource providera, požádejte organizátory o registraci Microsoft.App a Microsoft.OperationalInsights; tým nemá měnit subscription. Po experimentu smažte pouze své konkrétní aplikace, joby a nepotřebné prostředí v Azure Portal, nikoli celou resource group."),
-    externalLink("Container Apps: nasazení kontejneru", "https://learn.microsoft.com/azure/container-apps/quickstart-existing-container"),
-    externalLink("Container Apps Jobs", "https://learn.microsoft.com/azure/container-apps/jobs"));
+    externalLink("Container Apps: nasazení kontejneru", "https://learn.microsoft.com/azure/container-apps/get-started-existing-container-image"),
+    externalLink("Container Apps Jobs", "https://learn.microsoft.com/azure/container-apps/jobs-get-started-cli"));
   return section;
 }
 
@@ -747,6 +747,28 @@ function irisSection(user: string): HTMLElement {
   return section;
 }
 
+function stackSidebarWhenCrowded(sidebar: HTMLElement, nav: HTMLElement, access: HTMLElement): void {
+  const brand = sidebar.querySelector<HTMLElement>(".brand");
+  if (!brand || typeof ResizeObserver === "undefined") {
+    sidebar.classList.add("sidebar-stacked");
+    return;
+  }
+  const px = (value: string) => Number.parseFloat(value) || 0;
+  const update = () => {
+    const navStyle = getComputedStyle(nav);
+    const links = Array.from(nav.children) as HTMLElement[];
+    const navWidth = links.reduce((sum, link) => sum + link.getBoundingClientRect().width, 0)
+      + px(navStyle.columnGap) * Math.max(0, links.length - 1)
+      + px(navStyle.paddingLeft) + px(navStyle.paddingRight) + px(navStyle.borderLeftWidth) + px(navStyle.borderRightWidth);
+    const sidebarStyle = getComputedStyle(sidebar);
+    const available = sidebar.clientWidth - px(sidebarStyle.paddingLeft) - px(sidebarStyle.paddingRight);
+    const required = brand.getBoundingClientRect().width + access.getBoundingClientRect().width + navWidth + 2 * px(sidebarStyle.columnGap);
+    sidebar.classList.toggle("sidebar-stacked", required > available);
+  };
+  const observer = new ResizeObserver(update);
+  for (const target of [sidebar, brand, access, ...Array.from(nav.children)]) observer.observe(target);
+}
+
 function render(catalog: Catalog, user: string): void {
   root.replaceChildren();
   root.className = "app-layout";
@@ -793,6 +815,7 @@ function render(catalog: Catalog, user: string): void {
   tenant.title = "ID Microsoft Entra tenantu";
   access.append(tenant);
   sidebar.append(access);
+  stackSidebarWhenCrowded(sidebar, nav, access);
 
   const main = element("main", "main-content");
   main.id = "main";

@@ -317,6 +317,32 @@ test("IRIS mimo tým nevymýšlí resource group ani příkazy", async ({ page }
   await expect(page.locator("#iris input")).toHaveCount(0);
 });
 
+test("horní menu se nepřekrývá s logem ani tenantem", async ({ page }) => {
+  await prepare(page);
+  for (const width of [2560, 2000, 1800, 1600, 1440, 1024, 760, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(page.getByRole("navigation", { name: "Sekce katalogu" })).toBeVisible();
+    const { brandBox, navBox, accessBox } = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const rect = document.querySelector(selector)!.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+      };
+      return { brandBox: box("header.sidebar .brand"), navBox: box("nav.navigation"), accessBox: box(".sidebar-access") };
+    });
+    type Box = typeof brandBox;
+    const overlaps = (a: Box, b: Box) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    expect(overlaps(brandBox, navBox), `brand/nav @${width}`).toBe(false);
+    expect(overlaps(navBox, accessBox), `nav/access @${width}`).toBe(false);
+    expect(overlaps(brandBox, accessBox), `brand/access @${width}`).toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `scroll @${width}`).toBe(true);
+    expect(await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>("nav.navigation")!;
+      return nav.closest(".sidebar-stacked") !== null || nav.scrollWidth <= nav.clientWidth + 1;
+    }), `nav overflow @${width}`).toBe(true);
+  }
+});
+
 test("IRIS je čitelný na desktopu i mobilu v obou tématech", async ({ page }) => {
   await prepare(page, catalogFixture(), irisUser());
   for (const width of [1440, 1280, 1024, 375]) {
