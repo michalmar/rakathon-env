@@ -33,7 +33,7 @@ Organizátoři plánují předat každému týmu fyzickou kartičku ve formátu 
 
 ![Ukázková vizitka: vlevo fiktivní UPN team01@example.invalid a neplatný TAP UKAZKA-NEPLATI, vpravo QR kód portálu pro účastníky](assets/images/team-access-card-example.png)
 
-Ilustrační vizitka v poměru **90 × 50 mm**, nikoli finální tiskový podklad. **UPN i TAP jsou fiktivní a neplatné.** QR kód skutečně otevírá portál pro účastníky.
+Ukázka skutečného tiskového rozvržení kartičky **90 × 50 mm** s nahrazenými údaji. **UPN i TAP jsou fiktivní a neplatné; nejde o použitelnou přístupovou kartičku.** QR kód skutečně otevírá portál pro účastníky.
 
 1. U organizátorů převezměte kartičku svého týmu a ověřte, že vám patří. Ukázkové údaje z tohoto průvodce nepoužívejte.
 2. Naskenujte QR kód. Otevře pouze portál, nepřihlásí vás automaticky a neobsahuje UPN ani TAP. Při přihlášení k Microsoftu zadejte celé UPN z kartičky a použijte její TAP.
