@@ -772,7 +772,7 @@ print(reply.choices[0].message.content)</code></pre></div>
         </div>
         <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Sdílené limity mohou zastavit volání i před dokončením práce týmu</span><span class="card-sub">Výchozí nastavení není aktuální zůstatek.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
         <div class="card-body">
-          <p>Výchozí konfigurace repozitáře počítá s 1 000 USD na tým pro používání modelů, upozorněním organizátorů při 90 % a pozastavením přístupu po dosažení týmového limitu. Sdílený limit celé akce může zastavit všechny týmy dříve. Výchozí kvóta je 4 miliony tokenů na tým a den, společná pro textové modely.</p>
+          <p>Používání modelů má týmový rozpočet. Před jeho vyčerpáním dostávají organizátoři upozornění; po dosažení týmového limitu se přístup pozastaví. Sdílený limit celé akce může zastavit všechny týmy dříve. Výchozí kvóta je 4 miliony tokenů na tým a den, společná pro textové modely.</p>
           <p>Jde o výchozí nastavení, nikoli aktuální zůstatek. Skutečný příděl a spotřebu potvrzují organizátoři. Začněte krátkými prompty a malým počtem souběžných požadavků. Při chybách zastavte opakované pokusy ve smyčce; po překročení rate limitu vyčkejte a respektujte <code>Retry-After</code>, pokud je uveden. Pozastavený přístup mohou obnovit pouze organizátoři.</p>
           <aside class="callout callout--source"><p class="callout-label">Zdroj</p><p>Výchozí rozpočty a kvóty: dokumentace řízení nákladů a proměnné Terraform v repozitáři, ověřeno 12. října 2026. Nastavení organizátorů se může lišit.</p></aside>
         </div>

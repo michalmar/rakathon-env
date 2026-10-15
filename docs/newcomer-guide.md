@@ -310,7 +310,7 @@ Záměrně vynecháváme produkční sizing, vysokou dostupnost a složité sí�
 
 ## Začněte krátkými voláními a včas požádejte o pomoc
 
-Výchozí konfigurace repozitáře počítá s **1 000 USD na tým** pro používání modelů, upozorněním organizátorů při **90 %** a pozastavením přístupu po dosažení týmového limitu. Sdílený limit celé akce může zastavit všechny týmy dříve. Výchozí kvóta je **4 miliony tokenů na tým a den**, společná pro textové modely. Jde o výchozí nastavení, nikoli aktuální zůstatek; skutečný příděl a spotřebu potvrzují organizátoři.
+Používání modelů má týmový rozpočet. Před jeho vyčerpáním dostávají organizátoři upozornění; po dosažení týmového limitu se přístup pozastaví. Sdílený limit celé akce může zastavit všechny týmy dříve. Výchozí kvóta je **4 miliony tokenů na tým a den**, společná pro textové modely. Jde o výchozí nastavení, nikoli aktuální zůstatek; skutečný příděl a spotřebu potvrzují organizátoři.
 
 Začněte krátkými prompty a malým počtem souběžných požadavků. Při chybách zastavte opakované pokusy ve smyčce. Po překročení rate limitu vyčkejte a respektujte `Retry-After`, pokud je uveden. Pozastavený přístup mohou obnovit pouze organizátoři.
 

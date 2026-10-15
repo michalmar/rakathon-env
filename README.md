@@ -3,6 +3,7 @@
 Participant onboarding: [team newcomer guide](docs/newcomer-guide.md).
 The [standalone HTML guide](docs/newcomer-guide.standalone.html) also includes
 a browser presentation: open it and select **Slides**.
+Published guide: [GitHub Pages](https://michalmar.github.io/rakathon-env/docs/newcomer-guide.standalone.html).
 
 Terraform prostředí pro Azure hackathon je v adresáři
 [`infra/rakathon-env`](infra/rakathon-env/README.md).
