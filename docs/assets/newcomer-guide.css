@@ -9,6 +9,104 @@
 
 .guide-account-example { max-width: 720px; }
 
+:is([data-view="slides"], [data-print="slides"]) .guide-copilot-screen > .slide-content > img {
+  flex: 1 1 0;
+  max-height: none;
+}
+
+.guide-offer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(24px, 5vw, 72px);
+  max-width: 880px;
+}
+.guide-offer > div { min-width: 0; }
+.guide-offer img,
+[data-view="slides"] .slide-content .guide-offer img,
+[data-print="slides"] .slide-content .guide-offer img {
+  display: block;
+  width: clamp(72px, 9vw, 128px);
+  height: clamp(72px, 9vw, 128px);
+  object-fit: contain;
+  margin: 0 0 20px;
+}
+.guide-offer .guide-offer-github {
+  padding: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+.guide-offer .guide-offer-name {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.guide-offer p { margin: 0; }
+
+.guide-models {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  text-align: center;
+}
+.guide-models > div { min-width: 0; }
+.guide-model-brand { display: flex; align-items: center; justify-content: center; height: 96px; margin-bottom: 16px; }
+.guide-model-brand img,
+[data-view="slides"] .slide-content .guide-model-brand img,
+[data-print="slides"] .slide-content .guide-model-brand img {
+  width: 80px;
+  height: 80px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  object-fit: contain;
+}
+.guide-model-brand img.guide-model-microsoft,
+[data-view="slides"] .slide-content .guide-model-brand img.guide-model-microsoft,
+[data-print="slides"] .slide-content .guide-model-brand img.guide-model-microsoft { width: 160px; max-width: 100%; }
+.guide-model-wordmark { font-size: 48px; font-weight: 800; letter-spacing: -0.04em; }
+.guide-models p { margin: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.guide-models .guide-model-provider { margin-bottom: 10px; font-weight: 700; }
+.card-body .guide-models { margin-bottom: 28px; font-size: 14px; }
+:is([data-view="slides"], [data-print="slides"]) .guide-models { width: 100%; font-size: clamp(18px, 1.6vw, 26px); }
+@media (max-width: 760px) {
+  .guide-models { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+:is([data-view="slides"], [data-print="slides"]) #card-offer .slide-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+:is([data-view="slides"], [data-print="slides"]) #card-offer .guide-offer {
+  align-self: center;
+  width: 100%;
+  max-width: 1100px;
+  text-align: center;
+}
+:is([data-view="slides"], [data-print="slides"]) #card-offer .guide-offer img {
+  width: clamp(120px, 26vh, 260px);
+  height: clamp(120px, 26vh, 260px);
+  margin: 0 auto 32px;
+}
+:is([data-view="slides"], [data-print="slides"]) #card-offer .guide-offer p {
+  max-width: 24ch;
+  margin-inline: auto;
+  font-size: clamp(22px, 2vw, 32px);
+  line-height: 1.35;
+}
+:is([data-view="slides"], [data-print="slides"]) #card-offer .guide-offer-name {
+  margin-bottom: 12px;
+}
+@media print {
+  [data-print="slides"] #card-offer .guide-offer img {
+    width: 190px;
+    height: 190px;
+  }
+}
+
 @media screen {
   :root {
     --bg: #f4f7f8;
@@ -261,7 +359,7 @@
 
   @media (max-width: 900px) {
     .guide-workspace { gap: 16px; flex-wrap: wrap; }
-    .guide-navigation { order: 3; flex-basis: 100%; justify-content: center; }
+    .guide-navigation { order: 3; flex-basis: 100%; flex-wrap: wrap; justify-content: center; }
     :root:not([data-view="slides"]) .controls { top: 146px; }
     .chapter { scroll-margin-top: 210px; }
     :root:not([data-view="slides"]) .doc-header { gap: 32px; padding: 40px; grid-template-columns: minmax(0, 1fr) 160px; }

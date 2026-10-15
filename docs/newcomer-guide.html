@@ -219,6 +219,7 @@ SOFTWARE.
   <div class="guide-navigation">
     <a href="#ch-access">Přístup týmu</a>
     <a href="#ch-build">Modely a data</a>
+    <a href="#ch-prototypes">Azure inspirace</a>
     <a href="#ch-support">Pomoc</a>
   </div>
   <a class="guide-azure" href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer" aria-label="Azure Portal (otevře novou kartu)">
@@ -254,7 +255,7 @@ SOFTWARE.
     </div>
     <div class="guide-hero-content">
       <h1>Přihlaste se a začněte tvořit</h1>
-      <p class="subtitle">Získejte týmový API klíč, vyzkoušejte první volání modelu a najděte data k výzvě i své prostředí v Azure.</p>
+      <p class="subtitle">Získejte týmový API klíč, vyzkoušejte první volání modelu a vyberte jednoduchou sestavu služeb Azure pro svůj prototyp.</p>
       <p class="guide-portal-url">Portál pro účastníky: <a href="https://aka.ms/rakathon2026">https://aka.ms/rakathon2026</a></p>
       <p class="meta">Konfigurace ověřena <time datetime="2026-10-12">12. října 2026</time>. Nejde o živý přehled.</p>
     </div>
@@ -272,8 +273,11 @@ SOFTWARE.
   <nav class="toc" aria-label="Obsah">
     <p class="toc-label">Obsah</p>
     <ol>
+      <li><a href="#ch-offer">Co pro vás máme</a></li>
       <li><a href="#ch-access">Přístup týmu</a></li>
       <li><a href="#ch-build">Modely, data a prostředí</a></li>
+      <li><a href="#ch-copilot">GitHub Copilot</a></li>
+      <li><a href="#ch-prototypes">Od nápadu k prototypu v Azure</a></li>
       <li><a href="#ch-support">Limity a pomoc</a></li>
     </ol>
   </nav>
@@ -281,18 +285,54 @@ SOFTWARE.
   <!-- 8. Main content -->
   <main>
 
-    <section class="chapter" id="ch-access">
-      <h2 class="chapter-label">Přístup týmu</h2>
+    <section class="chapter" id="ch-offer">
+      <h2 class="chapter-label">Co pro vás máme</h2>
 
       <!-- Lead card: unnumbered, open on load. Only this card carries data-open. -->
-      <article class="card card--lead" id="card-resources" data-open>
+      <article class="card card--lead" id="card-offer" data-open>
+        <div class="slide-content">
+          <h2 class="slide-title">Co pro vás<br><em>máme.</em></h2>
+          <div class="guide-offer">
+            <div>
+              <img src="assets/images/azure-logo.svg" width="128" height="128" alt="Microsoft Azure logo">
+              <p class="guide-offer-name">Azure</p>
+              <p>Pro každý tým vlastní resource group.</p>
+            </div>
+            <div>
+              <img class="guide-offer-github" src="assets/images/github-logo.svg" width="128" height="128" alt="GitHub logo">
+              <p class="guide-offer-name">GitHub</p>
+              <p>Placený GitHub Copilot s kreditem pro každého účastníka.</p>
+            </div>
+          </div>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="true"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Co pro vás máme</span><span class="card-sub">Azure pro váš tým. GitHub Copilot pro každého účastníka.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <div class="guide-offer">
+            <div>
+              <img src="assets/images/azure-logo.svg" width="128" height="128" alt="Microsoft Azure logo">
+              <p class="guide-offer-name">Azure</p>
+              <p>Pro každý tým vlastní prostředí v Azure: resource group, kde můžete své řešení vytvářet a nasazovat.</p>
+            </div>
+            <div>
+              <img class="guide-offer-github" src="assets/images/github-logo.svg" width="128" height="128" alt="GitHub logo">
+              <p class="guide-offer-name">GitHub</p>
+              <p>Pro každého účastníka možnost využít GitHub Copilot s placenou licencí a připraveným kreditem.</p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="chapter" id="ch-access">
+      <h2 class="chapter-label">Přístup týmu</h2>
+      <article class="card" id="card-resources">
         <div class="slide-content">
           <h2 class="slide-title">Vše potřebné najdete<br><em>v portálu.</em></h2>
           <img src="assets/images/participant-portal.png" alt="Navigace portálu pro účastníky, katalog modelů a sekce API klíče." width="2722" height="1774">
           <p class="slide-lead">Ukázka: jiný než týmový účet, bez klíče. Identifikátory účtu a tenantu jsou skryté.</p>
         </div>
         <h3 class="card-head">
-          <button type="button" class="card-toggle" aria-expanded="true">
+          <button type="button" class="card-toggle" aria-expanded="false">
             <span class="card-num" aria-hidden="true"></span>
             <span class="card-titles">
               <span class="card-title">Tým má k dispozici sdílené modely a vlastní prostředí</span>
@@ -402,6 +442,31 @@ SOFTWARE.
 
     <section class="chapter" id="ch-build">
       <h2 class="chapter-label">Modely, data a prostředí</h2>
+      <article class="card" id="card-models">
+        <div class="slide-content">
+          <h2 class="slide-title">Osm připravených modelů.<br><em>Pět poskytovatelů.</em></h2>
+          <div class="guide-models">
+            <div><div class="guide-model-brand"><img src="assets/images/provider-openai.svg" width="80" height="80" alt="OpenAI logo"></div><p class="guide-model-provider">OpenAI</p><p>gpt-6.1-sol<br>gpt-6-astra<br>gpt-6-luna</p></div>
+            <div><div class="guide-model-brand"><span class="guide-model-wordmark" aria-label="xAI">xAI</span></div><p class="guide-model-provider">xAI</p><p>grok-4.7</p></div>
+            <div><div class="guide-model-brand"><img src="assets/images/provider-deepseek.svg" width="80" height="80" alt="DeepSeek logo"></div><p class="guide-model-provider">DeepSeek</p><p>DeepSeek-V4-Pro</p></div>
+            <div><div class="guide-model-brand"><img src="assets/images/provider-kimi.ico" width="80" height="80" alt="Moonshot AI / Kimi logo"></div><p class="guide-model-provider">Moonshot AI / Kimi</p><p>Kimi-K2.7-Code</p></div>
+            <div><div class="guide-model-brand"><img class="guide-model-microsoft" src="assets/images/microsoft-logo.png" width="160" height="80" alt="Microsoft logo"></div><p class="guide-model-provider">Microsoft AI</p><p>MAI-Thinking-1<br>MAI-Image-2.5</p></div>
+          </div>
+          <p class="slide-lead">Stav katalogu: 14. října 2026. Aktuální dostupnost ověřte v portálu.</p>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Připraveno je osm modelů od pěti poskytovatelů</span><span class="card-sub">OpenAI, xAI, DeepSeek, Moonshot AI / Kimi a Microsoft AI; přístup přes týmovou gateway.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <div class="guide-models">
+            <div><div class="guide-model-brand"><img src="assets/images/provider-openai.svg" width="80" height="80" alt="OpenAI logo"></div><p class="guide-model-provider">OpenAI</p><p>gpt-6.1-sol<br>gpt-6-astra<br>gpt-6-luna</p></div>
+            <div><div class="guide-model-brand"><span class="guide-model-wordmark" aria-label="xAI">xAI</span></div><p class="guide-model-provider">xAI</p><p>grok-4.7</p></div>
+            <div><div class="guide-model-brand"><img src="assets/images/provider-deepseek.svg" width="80" height="80" alt="DeepSeek logo"></div><p class="guide-model-provider">DeepSeek</p><p>DeepSeek-V4-Pro</p></div>
+            <div><div class="guide-model-brand"><img src="assets/images/provider-kimi.ico" width="80" height="80" alt="Moonshot AI / Kimi logo"></div><p class="guide-model-provider">Moonshot AI / Kimi</p><p>Kimi-K2.7-Code</p></div>
+            <div><div class="guide-model-brand"><img class="guide-model-microsoft" src="assets/images/microsoft-logo.png" width="160" height="80" alt="Microsoft logo"></div><p class="guide-model-provider">Microsoft AI</p><p>MAI-Thinking-1<br>MAI-Image-2.5</p></div>
+          </div>
+          <p>Modely i značky poskytovatelů odpovídají katalogu účastnického portálu ze 14. října 2026; všechny uvedené deploymenty v něm mají stav <strong>Succeeded</strong>. Jde o snapshot, nikoli živou kontrolu dostupnosti. Aktuální seznam a přesné názvy deploymentů ověřte v sekci <strong>Modely</strong> v <a href="https://aka.ms/rakathon2026">portálu pro účastníky</a>.</p>
+          <p>Modely používejte přes týmovou AI gateway. <strong>MAI-Image-2.5</strong> slouží ke generování obrázků; ostatní uvedené modely pracují s textem či kódem. Pro rozsah zpracování se řiďte označením EU Data Zone / Global u konkrétního deploymentu.</p>
+        </div>
+      </article>
       <article class="card" id="card-first-call">
         <div class="slide-content">
           <h2 class="slide-title">Ověřte připojení<br><em>jedním krátkým voláním.</em></h2>
@@ -444,11 +509,12 @@ print(reply.choices[0].message.content)</code></pre></div>
       </article>
       <article class="card" id="card-data">
         <div class="slide-content">
-          <h2 class="slide-title">Stáhněte data k výzvě<br><em>přes Azure Portal.</em></h2>
-          <ul class="slide-points"><li class="frag">Data používejte jen pro povolené výzvy VZP</li><li class="frag">Storage: Containers, potom data a Download</li><li class="frag">Přihlaste se stejným týmovým účtem</li></ul>
+          <h2 class="slide-title">Tato data jsou pouze<br><em>pro výzvy VZP.</em></h2>
+          <ul class="slide-points"><li class="frag">Nejde o společná data pro všechny challenge</li><li class="frag">Používejte jen pro svou povolenou výzvu VZP</li><li class="frag">Stahujte přes Azure Portal týmovým účtem</li></ul>
         </div>
-        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Katalog odkazuje na soubory k výzvám VZP, pouze pro čtení</span><span class="card-sub">Soubory stahujete v Azure Portal, nikoli v portálu pro účastníky.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Datové podklady jsou pouze pro výzvy VZP</span><span class="card-sub">Nejde o společná data pro všechny challenge; přístup je pouze pro čtení.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
         <div class="card-body">
+          <aside class="callout callout--warning"><p class="callout-label">Pouze výzvy VZP</p><p>Tyto soubory jsou podklady pro výzvy VZP, nikoli souhrn všech dat pro všechny challenge hackathonu. Dostupnost v portálu neznamená oprávnění použít je v jiné výzvě. Podklady pro ostatní challenge řešte podle jejich zadání s garantem výzvy.</p></aside>
           <p>Data používejte pouze tehdy, pokud se týkají vaší výzvy VZP a máte jejich použití povolené. V sekci <strong>Datové podklady pouze pro výzvy VZP</strong> zvolte <strong>Otevřít storage v portálu</strong>.</p>
           <ol class="steps">
             <li><h4>Použijte týmový účet</h4><p>Do Azure Portal se přihlaste stejným týmovým účtem. V případě potřeby přepněte adresář na adresář akce uvedený organizátory.</p></li>
@@ -469,6 +535,201 @@ print(reply.choices[0].message.content)</code></pre></div>
           <p>V <a href="https://portal.azure.com/">Azure Portal</a> otevřete <strong>Resource groups</strong> a vyberte přidělenou <code>rg-teamNN</code>. Tým zde má roli Contributor: prostředky aplikace vytvářejte a spravujte v této skupině v mezích Azure policies a dostupných kvót.</p>
           <p>Spravujte pouze vlastní skupinu; nejde o samostatnou subscription. Sdílená data jsou pouze pro čtení a skupiny ostatních týmů nejsou součástí vašeho prostředí. Sdílená AI gateway je připravena k použití, takže k volání modelů nepotřebujete vlastní Foundry resource.</p>
           <p>Před vytvářením placených prostředků se domluvte s týmem. U organizátorů ověřte povolené služby a náklady na infrastrukturu; níže uvedený rozpočet modelového API není rozpočtem na libovolné prostředky Azure.</p>
+        </div>
+      </article>
+    </section>
+    <section class="chapter" id="ch-copilot">
+      <h2 class="chapter-label">GitHub Copilot</h2>
+      <article class="card" id="card-copilot-intro">
+        <div class="slide-content">
+          <h2 class="slide-title">GitHub Copilot je<br><em>AI parťák pro vývoj.</em></h2>
+          <ul class="slide-points"><li class="frag">Vysvětlí kód a navrhne řešení</li><li class="frag">Doplňuje kód, pomáhá s testy a opravami</li><li class="frag">Agent může upravit soubory a spustit nástroje</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Copilot pomáhá psát, pochopit a upravovat kód</span><span class="card-sub">Znáte Claude Code, Cursor nebo Codex? Princip zadávání úkolů je podobný.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p><strong>GitHub Copilot</strong> je AI asistent pro vývoj softwaru: nabízí doplňování kódu, chat nad projektem a agentní práci na zadaném úkolu. Pokud znáte Claude Code, Cursor nebo Codex, princip je podobný: popíšete cíl a dáte nástroji kontext projektu. Copilot je propojený s GitHubem i běžnými vývojářskými nástroji; není to jen jeden model nebo pouze našeptávání kódu.</p>
+          <p>Agent podle dostupných oprávnění může projít repozitář, navrhnout postup, měnit soubory a spouštět testy. Na GitHubu může cloud agent připravit změny v pull requestu. Výsledek vždy zkontrolujte a ověřte; do promptů nevkládejte TAP, API klíče ani data, jejichž použití není pro vaši výzvu povolené.</p>
+          <p><strong>První úkol:</strong> „Vysvětli strukturu tohoto projektu a navrhni nejmenší změnu, která přidá formulář. Nejdřív mi ukaž plán.“ Funkce a dostupné modely závisejí na klientovi, licenci a nastavení organizace.</p>
+          <p><strong>Začněte:</strong> <a href="https://docs.github.com/en/copilot/get-started/quickstart-for-using-github-copilot-on-github-com">oficiální quickstart pro GitHub.com</a> ukazuje otázky nad souborem i zadání úkolu cloud agentovi. <a href="https://docs.github.com/en/copilot/get-started/about-github-copilot">Co je GitHub Copilot</a>. Ověřeno 15. října 2026.</p>
+        </div>
+      </article>
+      <article class="card" id="card-copilot-surfaces">
+        <div class="slide-content">
+          <h2 class="slide-title">Vyberte si prostředí,<br><em>ve kterém už pracujete.</em></h2>
+          <ul class="slide-points"><li class="frag">IDE: doplňování, chat a úpravy projektu</li><li class="frag">Terminál: GitHub Copilot CLI</li><li class="frag">GitHub.com nebo Copilot app: otázky a agentní úkoly</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Copilot můžete používat v IDE, terminálu, na webu i v app</span><span class="card-sub">Začněte jedním prostředím a přihlaste se stejným GitHub účtem s aktivovanou licencí.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <ul>
+            <li><strong>V IDE:</strong> například VS Code, Visual Studio nebo JetBrains. Doplňování při psaní, chat nad kódem a agentní úpravy projektu podle podpory daného editoru.</li>
+            <li><strong>V terminálu:</strong> GitHub Copilot CLI. Pracuje v adresáři projektu; po instalaci spusťte <code>copilot</code> a při prvním použití se přihlaste přes <code>/login</code>.</li>
+            <li><strong>Na GitHub.com:</strong> bez instalace otevřete soubor v repozitáři, klikněte na ikonu Copilotu a ptejte se na kód. Pro začátek zkuste „Vysvětli tento soubor“ nebo „Jaké testy této funkci chybí?“. Dostupný cloud agent může zpracovat zadaný úkol a připravit pull request.</li>
+            <li><strong>V GitHub Copilot app:</strong> samostatné prostředí pro práci na projektech a koordinaci agentních úkolů, repozitářů a pull requestů.</li>
+          </ul>
+          <p>Ve všech prostředích používejte stejný osobní GitHub účet, kterému byla přidělena hackathonová licence. Copilot nepoužívá týmový TAP ani <code>api-key</code> Azure gateway. Licence pro Copilot neaktivuje předplatné Cursoru, Claude Code ani jiného samostatného nástroje.</p>
+          <p><strong>Návody:</strong> <a href="https://docs.github.com/en/copilot/get-started/where-to-use-github-copilot">kde používat Copilot</a>, <a href="https://docs.github.com/en/copilot/get-started/quickstart-for-using-github-copilot-in-your-ide">quickstart pro IDE</a> a <a href="https://docs.github.com/en/copilot/get-started/cli-quickstart">instalace a první použití CLI</a>.</p>
+        </div>
+      </article>
+      <article class="card guide-copilot-screen" id="card-copilot-vscode">
+        <div class="slide-content">
+          <h2 class="slide-title">GitHub Copilot <em>ve VS Code.</em></h2>
+          <img src="assets/images/ghcp-ide-vscode.png" width="1560" height="807" alt="VS Code s Copilot Chatem, návrhem změn souborů a přehledem agentních úkolů.">
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">GitHub Copilot ve VS Code</span><span class="card-sub">Chat, návrhy změn a agentní úkoly přímo vedle kódu.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <figure class="figure">
+            <a class="zoom" href="assets/images/ghcp-ide-vscode.png"><img src="assets/images/ghcp-ide-vscode.png" width="1560" height="807" alt="VS Code s Copilot Chatem, návrhem změn souborů a přehledem agentních úkolů."></a>
+            <figcaption>Copilot ve VS Code: chat a kontrola navržených změn přímo v editoru. Ilustrační náhled prostředí.</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="card guide-copilot-screen" id="card-copilot-cli">
+        <div class="slide-content">
+          <h2 class="slide-title">GitHub Copilot <em>v terminálu.</em></h2>
+          <img src="assets/images/ghcp-cli.png" width="2095" height="1378" alt="Úvodní obrazovka GitHub Copilot CLI s promptem pro zadání úkolu v adresáři projektu.">
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">GitHub Copilot CLI v terminálu</span><span class="card-sub">Úkol zadáváte přímo v adresáři projektu.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <figure class="figure">
+            <a class="zoom" href="assets/images/ghcp-cli.png"><img src="assets/images/ghcp-cli.png" width="2095" height="1378" alt="Úvodní obrazovka GitHub Copilot CLI s promptem pro zadání úkolu v adresáři projektu."></a>
+            <figcaption>Copilot CLI: zadávání úkolů z terminálu. Ilustrační náhled prostředí.</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="card guide-copilot-screen" id="card-copilot-app">
+        <div class="slide-content">
+          <h2 class="slide-title">GitHub Copilot <em>app.</em></h2>
+          <img src="assets/images/ghcp-app.png" width="2262" height="1494" alt="GitHub Copilot app s výběrem repozitáře, zadáním úkolu a přehledem sessions.">
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">GitHub Copilot app</span><span class="card-sub">Projekty, sessions a agentní úkoly na jednom místě.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <figure class="figure">
+            <a class="zoom" href="assets/images/ghcp-app.png"><img src="assets/images/ghcp-app.png" width="2262" height="1494" alt="GitHub Copilot app s výběrem repozitáře, zadáním úkolu a přehledem sessions."></a>
+            <figcaption>Copilot app: výběr projektu a koordinace práce v samostatné aplikaci. Ilustrační náhled; nabídka modelů a funkcí závisí na licenci a nastavení organizace.</figcaption>
+          </figure>
+        </div>
+      </article>
+      <article class="card" id="card-copilot-signup">
+        <div class="slide-content">
+          <h2 class="slide-title">Přístup získáte<br><em>svým GitHub účtem.</em></h2>
+          <img src="assets/images/github-copilot-signup.png" width="2690" height="1660" alt="Registrace Rakathon 2026: Sign in with GitHub nebo Create a GitHub account.">
+          <p class="slide-lead">Portál pro účastníky → GitHub Copilot → registrace. Nejde o týmový Azure účet.</p>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Jak se k tomu dostanete: registrací do organizace akce</span><span class="card-sub">Postup ze SWA: osobní GitHub účet, podmínky účasti a přijetí pozvánky.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Pro účastníky je připraven GitHub Copilot s placenou licencí a kreditem pro akci. Registrace je oddělená od přihlášení do Azure. Otevřete <a href="https://aka.ms/rakathon2026#github">sekci GitHub Copilot v portálu pro účastníky</a> a zvolte <strong>Registrovat se pro GitHub Copilot</strong>, nebo naskenujte registrační QR níže.</p>
+          <ol class="steps">
+            <li><h4>Ověřte akci a přihlaste svůj GitHub účet</h4><p>Na registrační stránce musí být <strong>Rakathon 2026</strong>. Zvolte <strong>Sign in with GitHub</strong> a použijte osobní účet GitHub.com, se kterým budete během akce pracovat. Pokud účet nemáte, použijte <strong>Create a GitHub account</strong>. Enterprise Managed User (EMU) účty nejsou podporované. Nevkládejte sem týmové Azure UPN, TAP ani API klíč.</p></li>
+            <li><h4>Přečtěte si podmínky a požádejte o pozvánku</h4><p>Přečtěte si <strong>Participation Agreement</strong> včetně dopadu na licenci Copilotu. Pokud s podmínkami souhlasíte, potvrďte je a zvolte <strong>Request organization invitation</strong>.</p></li>
+            <li><h4>Přijměte pozvánku a ověřte licenci</h4><p>Dokončete přijetí pozvánky podle registrační stránky. Stav přístupu ověřte v <a href="https://github.com/settings/copilot">nastavení Copilotu</a> a stejným GitHub účtem se přihlaste v IDE, CLI nebo app. Pokud odkaz vypršel, pozvánka nepřijde nebo Copilot není aktivní, kontaktujte organizátory.</p></li>
+          </ol>
+          <figure class="figure" style="max-width: 240px">
+            <img src="assets/images/github-enrollment-qr.png" width="600" height="600" alt="QR kód přímé registrace ke GitHub Copilotu na Rakathonu 2026.">
+            <figcaption>QR ze SWA otevírá přímo registrační stránku akce.</figcaption>
+          </figure>
+          <aside class="callout callout--warning"><p class="callout-label">Licence a dočasná organizace</p><p>Podmínky registrace upozorňují na zrušení stávajícího individuálního předplatného Copilotu při připojení; zvažte samostatný GitHub účet pro akci. U firemní licence postupujte podle pokynů k <strong>Usage billed to</strong> na registrační stránce. Organizace akce i její obsah mají být podle SWA odstraněny <strong>19. října 2026</strong>: práci, kterou chcete zachovat, si včas uložte mimo ni. Nesdílejte citlivá data ani klíče.</p></aside>
+          <figure class="figure">
+            <a class="zoom" href="assets/images/github-copilot-signup.png"><img src="assets/images/github-copilot-signup.png" width="2690" height="1660" alt="Náhled registrace Rakathon 2026 se vstupem přes osobní GitHub účet a údaji o dočasné organizaci."></a>
+            <figcaption>Registrační stránka akce; aktuální stav a podmínky ověřte po otevření odkazu. Postup a upozornění převzaty ze SWA, ověřeno 15. října 2026.</figcaption>
+          </figure>
+        </div>
+      </article>
+    </section>
+    <section class="chapter" id="ch-prototypes">
+      <h2 class="chapter-label">Od nápadu k prototypu v Azure</h2>
+
+      <article class="card" id="card-static-web">
+        <div class="slide-content">
+          <h2 class="slide-title">Jednoduchému webu stačí<br><em>Static Web Apps.</em></h2>
+          <ul class="slide-points"><li class="frag">Rozcestník, vizualizace CSV nebo dashboard</li><li class="frag">Začněte plánem Free a statickým frontendem</li><li class="frag">API klíče do prohlížeče nepatří</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Jednoduchý web nepotřebuje vlastní server</span><span class="card-sub">Static Web Apps / Free: rozcestník, vizualizace CSV nebo dashboard.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p>Vyberte nejmenší sestavu, která předvede váš nápad. Jde o inspiraci pro <strong>MVP / PoC</strong>, ne o produkční architektury ani předem nasazené služby. Vše vytvářejte ve vlastní <code>rg-teamNN</code>; dostupnost služby, region, kvóty a cenu ověřte před nasazením.</p>
+          <p><strong>Nápad:</strong> rozcestník týmu, vizualizace CSV nebo dashboard nad povolenými anonymizovanými daty. HTML/CSS/JavaScript, React nebo Vue sestavte jako statické soubory a publikujte přes GitHub Actions. Čistě statický web backend nepotřebuje.</p>
+          <ol class="sequence"><li><span class="seq-title">Prohlížeč</span></li><li><span class="seq-title">Static Web Apps</span></li><li><span class="seq-title">Statické soubory</span></li></ol>
+          <p><strong>Tier:</strong> začněte plánem <strong>Free</strong>; má omezené kvóty a nemá SLA. Standard je placený, pro běžnou statickou ukázku není nutný. API klíč modelů ani databázové přihlašovací údaje do frontendu nepatří.</p>
+          <p><strong>Začněte:</strong> <a href="https://learn.microsoft.com/en-us/azure/static-web-apps/getting-started?tabs=vanilla-javascript">Microsoft Learn: první Static Web App</a> obsahuje i odkazy na startovací GitHub šablony. <a href="https://learn.microsoft.com/en-us/azure/static-web-apps/plans">Porovnání Free a Standard</a>.</p>
+          <aside class="callout callout--note"><p class="callout-label">Platnost doporučení</p><p>Podmínky plánů a nabídek v této kapitole byly ověřeny 15. října 2026 v odkazované dokumentaci Microsoftu. Nejde o cenovou nabídku ani potvrzení zbývající free kapacity v subscription akce. Consumption znamená platbu za použití, nikoli automaticky zdarma.</p></aside>
+        </div>
+      </article>
+
+      <article class="card" id="card-web-database">
+        <div class="slide-content">
+          <h2 class="slide-title">Formulář ukládá data<br><em>přes vlastní API.</em></h2>
+          <ul class="slide-points"><li class="frag">Static Web Apps, Functions, Azure SQL Database</li><li class="frag">SQL free offer nejprve potvrďte s organizátory</li><li class="frag">Serverless databáze neznamená automaticky zdarma</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Web s databází oddělí formulář, API a uložená data</span><span class="card-sub">SWA Free + Functions Flex Consumption + SQL free offer, pokud je dostupná.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p><strong>Nápad:</strong> evidence požadavků, registrace nápadů nebo hodnocení návrhů. Frontend zobrazuje formulář a seznam; vlastní HTTP API kontroluje vstupy a čte či zapisuje data.</p>
+          <ol class="sequence"><li><span class="seq-title">Static Web Apps</span></li><li><span class="seq-title">HTTP Function</span></li><li><span class="seq-title">Azure SQL Database</span></li></ol>
+          <p><strong>Tier:</strong> SWA <strong>Free</strong>, samostatná Function App v <strong>Flex Consumption / On Demand</strong>, SQL Database <strong>free offer</strong>, pokud je dostupná. Nejde o MySQL ani o virtuální server se SQL Serverem. Pro připojení samostatného API k frontendu platí pravidla CORS a autentizace z <a href="#card-serverless-api">následujícího scénáře</a>.</p>
+          <p>SQL free offer je omezená na <strong>10 databází v celé subscription</strong>, ne na každý tým; dostupný počet a společný region nejprve potvrďte s organizátory. Při vytvoření musí být vidět <strong>Free offer applied!</strong> a zvolte <strong>Auto-pause the database until next month</strong>. Nepřepínejte na automatické placené pokračování. Pokud nabídka není dostupná, placenou variantu nejprve schvalte; samotné označení serverless neznamená zdarma. Po pauze může první požadavek trvat déle.</p>
+          <p>Přihlašovací údaje databáze patří jen do serverové konfigurace. API musí mít povolené síťové připojení k SQL; nepovolujte kvůli demu všechny IP adresy. Bez potřeby relačních dotazů zvažte jednodušší Azure Table Storage, účtované podle uložených dat a operací.</p>
+          <p><strong>Začněte:</strong> <a href="https://learn.microsoft.com/en-us/azure/azure-functions/functions-add-output-binding-azure-sql-vs-code">Microsoft Learn: HTTP Function a zápis do SQL</a>, <a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/free-offer?view=azuresql">vytvoření SQL free offer a její limity</a>. Návod používá SQL binding v samostatné Function App, ne v omezeném managed API SWA; nastavení sítě přizpůsobte pravidlům akce.</p>
+        </div>
+      </article>
+
+      <article class="card" id="card-serverless-api">
+        <div class="slide-content">
+          <h2 class="slide-title">Malé API spouštějte<br><em>jen na požadavek.</em></h2>
+          <ul class="slide-points"><li class="frag">Azure Functions: Flex Consumption, bez Always ready</li><li class="frag">Klíč modelu zůstává na backendu</li><li class="frag">Storage a monitoring se účtují zvlášť</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Functions obslouží malé API, webhook nebo AI asistenta</span><span class="card-sub">Flex Consumption / On Demand: výpočet podle běhu, bez stále připravených instancí.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p><strong>Nápad:</strong> API pro shrnutí textu, klasifikaci požadavku nebo asistenta nad povoleným vstupem. Web volá vlastní backend; teprve backend odešle požadavek na sdílenou AI gateway s týmovým <code>api-key</code>.</p>
+          <ol class="sequence"><li><span class="seq-title">Frontend</span></li><li><span class="seq-title">HTTP Function</span></li><li><span class="seq-title">Týmová AI gateway</span></li></ol>
+          <p><strong>Tier:</strong> samostatná Function App v <strong>Flex Consumption / On Demand</strong>, bez <strong>Always ready</strong>. Výpočet se účtuje podle běhu a počtu spuštění, s free grantem pro způsobilé subscription. Storage a monitoring se účtují zvlášť; čekání na odpověď modelu také prodlužuje běh. Po nečinnosti počítejte s cold startem.</p>
+          <p>Pro krátké HTTP API může stačit také <strong>managed Functions API přímo ve SWA Free</strong>: nasazuje se s webem do <code>/api</code>. Nepodporuje ale Durable Functions, ne-HTTP triggery ani managed identity. Samostatné API volejte přes jeho HTTPS URL; povolte CORS jen pro vlastní frontend a ověřujte uživatele. Přímé propojení vlastní Function App pod <code>/api</code> ve SWA vyžaduje <strong>Standard</strong>, není nutné kvůli němu automaticky upgradovat. CORS samo o sobě není autentizace.</p>
+          <p>Chraňte API před veřejným zneužitím a omezte délku vstupu i počet volání. Týmový klíč nepatří do JavaScriptu prohlížeče; vlastní Foundry resource není potřeba.</p>
+          <p><strong>Začněte:</strong> <a href="https://learn.microsoft.com/en-us/azure/azure-functions/how-to-create-function-vs-code?pivots=programming-language-javascript">Microsoft Learn: první samostatná Function</a>, <a href="https://learn.microsoft.com/en-us/azure/static-web-apps/add-api">jednodušší managed API ve SWA</a>, <a href="https://learn.microsoft.com/en-us/azure/static-web-apps/apis-functions">omezení managed API</a> a <a href="https://azure.microsoft.com/en-us/pricing/details/functions/">ceny Functions</a>.</p>
+        </div>
+      </article>
+
+      <article class="card" id="card-orchestration">
+        <div class="slide-content">
+          <h2 class="slide-title">Více kroků propojí<br><em>Durable Functions.</em></h2>
+          <ul class="slide-points"><li class="frag">Načíst dokument, zpracovat části, sloučit výsledek</li><li class="frag">Samostatná Function App a úložiště stavu</li><li class="frag">Pro levný PoC zvažte Azure Storage backend</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Durable Functions ukládá stav vícekrokového zpracování</span><span class="card-sub">Flex Consumption + Azure Storage: orchestrace, paralelní úlohy a kontrola stavu.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p><strong>Nápad:</strong> načíst dokument, zpracovat jeho části paralelně a sloučit výsledky. Durable Functions ukládá stav workflow; klient spustí úlohu a následně kontroluje stav místo dlouhého čekání na jednom HTTP spojení.</p>
+          <ol class="sequence"><li><span class="seq-title">HTTP start</span></li><li><span class="seq-title">Orchestrátor</span></li><li><span class="seq-title">Activity funkce</span></li><li><span class="seq-title">Výsledek</span></li></ol>
+          <p><strong>Tier:</strong> samostatná Function App v <strong>Flex Consumption</strong>, bez Always ready; pro levný PoC použijte backend <strong>Azure Storage</strong> a jeho platbu za operace a data. Orchestrace není součástí managed Functions ve SWA. Vedle výpočtu platíte storage transakce, historii a případná volání modelů; omezte paralelismus a opakované pokusy.</p>
+          <p><strong>Začněte:</strong> <a href="https://learn.microsoft.com/en-us/azure/durable-task/durable-functions/quickstart-js-vscode">Microsoft Learn: JavaScript Durable Functions</a> a <a href="https://github.com/Azure-Samples/Durable-Task-Scheduler">Azure-Samples/Durable-Task-Scheduler</a>. Tato ukázka běží lokálně s <strong>Durable Task Scheduler emulátorem</strong>, nikoli s Azure Storage backendem. Pro cloud si zvolte backend vědomě podle <a href="https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-storage-providers">porovnání providerů</a>; nepřebírejte konfiguraci emulátoru beze změny a nenasazujte placený Dedicated scheduler jen kvůli ukázce.</p>
+        </div>
+      </article>
+
+      <article class="card" id="card-container-backend">
+        <div class="slide-content">
+          <h2 class="slide-title">Vlastní backend nasaďte<br><em>do Container Apps.</em></h2>
+          <ul class="slide-points"><li class="frag">FastAPI, Express, ASP.NET nebo vlastní Dockerfile</li><li class="frag">Consumption: minimum replik 0, maximum zpočátku 1</li><li class="frag">Registry a logy mohou stát peníze i bez replik</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Container Apps spustí váš backend bez správy Kubernetes</span><span class="card-sub">Consumption: malé CPU/RAM, škálování na nulu a omezené maximum replik.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <p><strong>Nápad:</strong> FastAPI, Express, ASP.NET nebo existující aplikace s Dockerfilem. Backend může obsloužit i frontend, takže pro první demo často stačí jedna aplikace místo několika microservices.</p>
+          <ol class="sequence"><li><span class="seq-title">HTTPS požadavek</span></li><li><span class="seq-title">Container Apps</span></li><li><span class="seq-title">Data / AI gateway</span></li></ol>
+          <p><strong>Tier:</strong> profil <strong>Consumption</strong>, malé CPU/RAM, HTTP scaling, <strong>min replicas = 0</strong> a pro začátek <strong>max replicas = 1</strong>. Při nule replik neplatíte výpočet aplikace; cold start může zpomalit první požadavek. Vyšší maximum přidávejte až podle potřeby. Lokální filesystem kontejneru není trvalá databáze.</p>
+          <p>Free grant pro výpočet a požadavky se sdílí v subscription; není to neomezený hosting zdarma. Azure Container Registry, buildy, Log Analytics, storage a síť mohou stát peníze i při nule replik. Pro prototyp nepotřebujete Dedicated profil, GPU ani vlastní AKS cluster.</p>
+          <p><strong>Začněte:</strong> <a href="https://learn.microsoft.com/en-us/azure/container-apps/quickstart-code-to-cloud">Microsoft Learn: z lokálního kódu do Container Apps</a>, <a href="https://github.com/Azure-Samples/containerapps-albumapi-python">Azure-Samples: Python / FastAPI backend</a>, <a href="https://learn.microsoft.com/en-us/azure/container-apps/scale-app">scaling</a> a <a href="https://learn.microsoft.com/en-us/azure/container-apps/billing">účtování Consumption</a>.</p>
+        </div>
+      </article>
+
+      <article class="card" id="card-prototype-costs">
+        <div class="slide-content">
+          <h2 class="slide-title">Levný prototyp začíná<br><em>kontrolou nasazení.</em></h2>
+          <ul class="slide-points"><li class="frag">Free limity sdílí subscription, ne každý tým</li><li class="frag">Vše nasazujte do své rg-teamNN</li><li class="frag">Po demu ukliďte vlastní prostředky, ne celou skupinu</li></ul>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Levný prototyp hlídá i náklady závislostí</span><span class="card-sub">Před deployem ověřte plán a oprávnění; po demu ukliďte jen vlastní prostředky.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <ol class="steps">
+            <li><h4>Vyberte nejmenší scénář</h4><p>Ověřte plán, region, odhad ceny, související prostředky a kvóty; free granty Functions a Container Apps jsou sdílené v subscription, nikoli přidělené každé <code>rg-teamNN</code>.</p></li>
+            <li><h4>Přizpůsobte návod týmovému prostředí</h4><p>Novou resource group nahraďte svou existující <code>rg-teamNN</code>. Contributor ve skupině nemůže přidělovat RBAC role ani registrovat resource providery na subscription; pokud je vyžadují automatické šablony nebo managed identity, požádejte organizátory. Nezakládejte vlastní subscription a nespouštějte cizí deploy šablony naslepo.</p></li>
+            <li><h4>Použijte připravenou AI gateway</h4><p>Nevytvářejte kopii sdíleného Foundry či APIM. U AI ukázek přizpůsobte backend týmové gateway podle <a href="#card-first-call">prvního API příkladu</a>. Používejte jen data povolená pro vaši výzvu; API a web s neveřejnými daty nesmí zůstat anonymně přístupné.</p></li>
+            <li><h4>Omezte škálování a kontrolujte náklady</h4><p>Nastavte rozumné škálování, omezené retries a úsporné logování bez tajných údajů. Cost Management sledujte, pokud k němu máte přístup; jinak náklady potvrzují organizátoři. Rozpočet modelového API nekryje libovolné Azure služby a alert sám infrastrukturu nevypne.</p></li>
+            <li><h4>Ukliďte jen své nepotřebné prostředky</h4><p>Po demu po dohodě odstraňte vlastní nepotřebné prostředky včetně placených závislostí. Pouhé zastavení aplikace nemusí zastavit účet za registry, databázi, disky nebo logy. Nemažte celou týmovou resource group podle závěrečného cleanup příkazu v cizím tutoriálu.</p></li>
+          </ol>
+          <p>Záměrně vynecháváme produkční sizing, vysokou dostupnost a složité síťové topologie. Pokud je ale kvůli datům vyžaduje zadání nebo Azure policy, neobcházejte je kvůli levnějšímu demu.</p>
         </div>
       </article>
     </section>
@@ -522,7 +783,7 @@ print(reply.choices[0].message.content)</code></pre></div>
 
   <!-- 10. Footer -->
   <footer class="doc-footer">
-    <span>Vychází ze zdrojového kódu portálu, příkladů API, vytváření týmových účtů, konfigurace infrastruktury a dokumentace řízení nákladů v repozitáři. Snapshot modelů a souborů: 9. října 2026. Konfigurace ověřena: 12. října 2026. Neobsahuje přihlašovací údaje ani postupy pro administrátory.</span>
+    <span>Vychází ze zdrojového kódu portálu, příkladů API, vytváření týmových účtů, konfigurace infrastruktury a dokumentace řízení nákladů v repozitáři. Snapshot modelů a souborů: 9. října 2026. Konfigurace ověřena: 12. října 2026. Azure inspirace: odkazovaná dokumentace Microsoft Learn a Azure-Samples, ověřeno 15. října 2026. Neobsahuje přihlašovací údaje ani postupy pro administrátory.</span>
   </footer>
 
 </div>

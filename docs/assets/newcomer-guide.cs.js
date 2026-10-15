@@ -1,7 +1,16 @@
-/* Localize generated controls without changing the shared html-docs runtime. */
+/* Document-specific chapter numbering and Czech controls; shared runtime stays unchanged. */
 (() => {
   "use strict";
   const root = document.documentElement;
+  const chapters = Array.from(document.querySelectorAll("main > .chapter"));
+  if (chapters[0]?.id === "ch-offer") {
+    chapters.forEach((chapter, index) => {
+      const number = String(index).padStart(2, "0");
+      chapter.dataset.sectionNumber = number;
+      const heading = chapter.querySelector(":scope > .chapter-label");
+      if (heading) heading.dataset.sectionNumber = number;
+    });
+  }
   const colors = { blue: "modrá", orange: "oranžová", green: "zelená" };
   const text = (selector, value) => {
     document.querySelectorAll(selector).forEach(node => {
