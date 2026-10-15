@@ -9,6 +9,42 @@
 
 .guide-account-example { max-width: 720px; }
 
+.guide-terminal {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #334452;
+  border-radius: 14px;
+  background: #101820;
+  color: #e7eef5;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.guide-terminal-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid #334452;
+  color: #a3b5c3;
+  font: 500 13px/1.2 var(--font-mono);
+}
+.guide-terminal pre {
+  margin: 0;
+  padding: 26px 28px;
+  overflow-x: auto;
+  white-space: pre;
+  font: clamp(18px, 1.55vw, 26px)/1.65 var(--font-mono);
+}
+.guide-terminal code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.guide-terminal-prompt { color: #a3b5c3; }
+.guide-terminal-host { color: #76c7ff; }
+.guide-terminal-route { color: #a4e57e; }
+.guide-terminal-key { color: #ffcc66; }
+.guide-terminal-model { color: #d2a6ff; }
+.guide-terminal-message { color: #ff9ca8; }
+[data-print="slides"] .guide-terminal pre { padding: 20px 24px; font-size: 18px; }
+
 :is([data-view="slides"], [data-print="slides"]) .guide-copilot-screen > .slide-content > img {
   flex: 1 1 0;
   max-height: none;
@@ -40,6 +76,37 @@
   font-weight: 700;
 }
 .guide-offer p { margin: 0; }
+
+.guide-coaches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
+  text-align: center;
+}
+.guide-coaches > div { min-width: 0; }
+.guide-coach-avatar,
+[data-view="slides"] .slide-content img.guide-coach-avatar,
+[data-print="slides"] .slide-content img.guide-coach-avatar {
+  display: block;
+  width: 128px;
+  height: 128px;
+  max-height: none;
+  flex: none;
+  object-fit: cover;
+  margin: 0 auto 24px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+.guide-coaches p { margin: 0; line-height: 1.4; }
+.guide-coaches .guide-coach-name { margin-bottom: 12px; font-weight: 700; }
+:is([data-view="slides"], [data-print="slides"]) .guide-coaches { font-size: clamp(22px, 2vw, 30px); }
+@media (max-width: 760px) {
+  .guide-coaches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .guide-coaches { grid-template-columns: minmax(0, 1fr); }
+}
 
 .guide-models {
   display: grid;

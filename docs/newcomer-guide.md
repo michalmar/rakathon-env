@@ -12,6 +12,15 @@ Přihlaste se týmovým účtem, zkopírujte si API klíč a vyzkoušejte první
 
 **GitHub:** pro každého účastníka možnost využít GitHub Copilot s placenou licencí a připraveným kreditem.
 
+### Kouči z Microsoftu vám pomohou
+
+| Kouč | S čím pomůže |
+|---|---|
+| <img src="assets/images/coach-michal-marusan.jpg" width="96" height="96" alt="Portrét Michala Marušana"><br>**Michal Marušan** | AI aplikace, Azure, Copilot, architektura a prototyp |
+| <img src="assets/images/coach-simon-prochazka.jpg" width="96" height="96" alt="Portrét Simona Procházky"><br>**Simon Procházka** | Rozdělení problému, architektura a AI prototyp |
+| <img src="assets/images/coach-olena-vasylenko.jpg" width="96" height="96" alt="Portrét Oleny Vasylenko"><br>**Olena Vasylenko** | Onkologická a biologická data, vývoj AI aplikací |
+| <img src="assets/images/coach-bernardo-sunderhus.jpg" width="96" height="96" alt="Portrét Bernarda Sunderhuse"><br>**Bernardo Sunderhus** | Frontend, UX, přístupnost, React/TypeScript a AI prototypy |
+
 ## Otevřete portál pro účastníky
 
 **Portál pro účastníky:** <https://aka.ms/rakathon2026>
@@ -89,7 +98,21 @@ Modely používejte přes týmovou AI gateway. **MAI-Image-2.5** slouží ke gen
 
 ## Vyzkoušejte krátké první volání modelu
 
-V sekci **Modely** vyberte textový deployment. Hodnota `model` je **název deploymentu**, nikoli zobrazovaný název modelu. Například pro `gpt-6-luna` je nakonfigurován deployment `gpt-6-luna-dz-eu`; před použitím ověřte, že je v seznamu.
+V sekci **Modely** vyberte textový deployment. Hodnota `model` je **název deploymentu**, nikoli zobrazovaný název modelu. Například pro `gpt-6.1-sol` je nakonfigurován deployment `gpt-6-1-sol-dz-eu`; před použitím ověřte, že je v seznamu.
+
+Zkrácená ukázka z prezentačního slidu:
+
+```bash
+curl https://apim-[address].azure-api.net/openai/v1/chat/completions \
+  -H "api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-6-1-sol-dz-eu",
+    "messages": [{"role": "user", "content": "Ahoj"}]
+  }'
+```
+
+`apim-[address].azure-api.net` je zástupná adresa gateway: nahraďte ji adresou z portálu. Barvy na slidu rozlišují adresu, cestu `/chat/completions`, proměnnou `$API_KEY`, název deploymentu a zprávu `Ahoj`. Prompt `~ ❯` není součást příkazu. Níže je úplný příklad se skrytým zadáním klíče.
 
 Příklad spusťte v **Bashi** s nainstalovaným `curl`. Zadávání klíče je skryté a jeho konkrétní hodnota se neuloží do historie příkazů:
 
@@ -101,7 +124,7 @@ curl --fail-with-body --silent --show-error \
   https://apim-rakathon-q7146n.azure-api.net/openai/v1/chat/completions \
   -H "api-key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-6-luna-dz-eu","messages":[{"role":"user","content":"Pozdrav náš tým na hackathonu."}]}'
+  -d '{"model":"gpt-6-1-sol-dz-eu","messages":[{"role":"user","content":"Ahoj"}]}'
 unset API_KEY
 ```
 
@@ -119,8 +142,8 @@ client = OpenAI(
     default_headers={"api-key": getpass("Týmový API klíč: ")},
 )
 reply = client.chat.completions.create(
-    model="gpt-6-luna-dz-eu",
-    messages=[{"role": "user", "content": "Pozdrav náš tým na hackathonu."}],
+    model="gpt-6-1-sol-dz-eu",
+    messages=[{"role": "user", "content": "Ahoj"}],
 )
 print(reply.choices[0].message.content)
 ```

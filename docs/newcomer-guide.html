@@ -321,6 +321,26 @@ SOFTWARE.
           </div>
         </div>
       </article>
+      <article class="card" id="card-coaches">
+        <div class="slide-content">
+          <h2 class="slide-title">Kouči z Microsoftu<br><em>vám pomohou.</em></h2>
+          <div class="guide-coaches">
+            <div><img class="guide-coach-avatar" src="assets/images/coach-michal-marusan.jpg" width="128" height="128" alt="Portrét Michala Marušana"><p class="guide-coach-name">Michal Marušan</p><p>AI aplikace, Azure, Copilot, architektura a prototyp.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-simon-prochazka.jpg" width="128" height="128" alt="Portrét Simona Procházky"><p class="guide-coach-name">Simon Procházka</p><p>Rozdělení problému, architektura a AI prototyp.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-olena-vasylenko.jpg" width="128" height="128" alt="Portrét Oleny Vasylenko"><p class="guide-coach-name">Olena Vasylenko</p><p>Onkologická a biologická data, vývoj AI aplikací.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-bernardo-sunderhus.jpg" width="128" height="128" alt="Portrét Bernarda Sunderhuse"><p class="guide-coach-name">Bernardo Sunderhus</p><p>Frontend, UX, přístupnost, React/TypeScript a AI prototypy.</p></div>
+          </div>
+        </div>
+        <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Kouči z Microsoftu vám pomohou</span><span class="card-sub">Od rozdělení problému a práce s daty po architekturu a prototyp.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
+        <div class="card-body">
+          <div class="guide-coaches">
+            <div><img class="guide-coach-avatar" src="assets/images/coach-michal-marusan.jpg" width="128" height="128" alt="Portrét Michala Marušana"><p class="guide-coach-name">Michal Marušan</p><p>AI aplikace, Azure, Copilot, architektura a prototyp.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-simon-prochazka.jpg" width="128" height="128" alt="Portrét Simona Procházky"><p class="guide-coach-name">Simon Procházka</p><p>Rozdělení problému, architektura a AI prototyp.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-olena-vasylenko.jpg" width="128" height="128" alt="Portrét Oleny Vasylenko"><p class="guide-coach-name">Olena Vasylenko</p><p>Onkologická a biologická data, vývoj AI aplikací.</p></div>
+            <div><img class="guide-coach-avatar" src="assets/images/coach-bernardo-sunderhus.jpg" width="128" height="128" alt="Portrét Bernarda Sunderhuse"><p class="guide-coach-name">Bernardo Sunderhus</p><p>Frontend, UX, přístupnost, React/TypeScript a AI prototypy.</p></div>
+          </div>
+        </div>
+      </article>
     </section>
 
     <section class="chapter" id="ch-access">
@@ -470,11 +490,21 @@ SOFTWARE.
       <article class="card" id="card-first-call">
         <div class="slide-content">
           <h2 class="slide-title">Ověřte připojení<br><em>jedním krátkým voláním.</em></h2>
-          <ul class="slide-points"><li class="frag">Vyberte textový deployment ze seznamu</li><li class="frag">Do model zadejte název deploymentu</li><li class="frag">Odpověď asistenta dostanete v JSON</li></ul>
+          <div class="guide-terminal">
+            <div class="guide-terminal-bar" aria-hidden="true"><span>bash</span><span>curl / Chat Completions</span></div>
+            <pre><code><span class="guide-terminal-prompt" aria-hidden="true">~ ❯ </span>curl https://<span class="guide-terminal-host">apim-[address].azure-api.net</span>/openai/v1<span class="guide-terminal-route">/chat/completions</span> \
+  -H "api-key: <span class="guide-terminal-key">$API_KEY</span>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "<span class="guide-terminal-model">gpt-6-1-sol-dz-eu</span>",
+    "messages": [{"role": "user", "content": "<span class="guide-terminal-message">Ahoj</span>"}]
+  }'</code></pre>
+          </div>
         </div>
         <h3 class="card-head"><button type="button" class="card-toggle" aria-expanded="false"><span class="card-num" aria-hidden="true"></span><span class="card-titles"><span class="card-title">Krátké první volání ověří připojení k modelu</span><span class="card-sub">Použijte název deploymentu, nikoli zobrazovaný název modelu.</span></span><span class="card-mark" aria-hidden="true"></span></button></h3>
         <div class="card-body">
-          <p>V sekci <strong>Modely</strong> vyberte textový deployment. Například pro <code>gpt-6-luna</code> je nakonfigurován deployment <code>gpt-6-luna-dz-eu</code>; před použitím ověřte, že je v seznamu. Pokud vyberete jiný textový deployment, změňte v příkladu hodnotu <code>model</code>.</p>
+          <p>V sekci <strong>Modely</strong> vyberte textový deployment. Například pro <code>gpt-6.1-sol</code> je nakonfigurován deployment <code>gpt-6-1-sol-dz-eu</code>; před použitím ověřte, že je v seznamu. Pokud vyberete jiný textový deployment, změňte v příkladu hodnotu <code>model</code>.</p>
+          <p>Na slidu je zkrácená ukázka: <code>apim-[address].azure-api.net</code> je zástupná adresa gateway, kterou nahraďte adresou z portálu. Barvy rozlišují adresu, cestu <code>/chat/completions</code>, proměnnou <code>$API_KEY</code>, název deploymentu a zprávu <code>Ahoj</code>. Prompt <code>~ ❯</code> není součást příkazu. Níže je úplný příklad se skrytým zadáním klíče.</p>
           <p>Příklad spusťte v Bashi s nainstalovaným curl. Zadávání klíče je skryté a jeho konkrétní hodnota se neuloží do historie příkazů. Úspěšný požadavek vrátí JSON s odpovědí asistenta.</p>
           <div class="code"><p class="code-label">Bash</p><pre><code>export AZURE_CONFIG_DIR="$HOME/.azure-rak"
 read -r -s -p "Týmový API klíč: " API_KEY; printf '\n'
@@ -483,7 +513,7 @@ curl --fail-with-body --silent --show-error \
   https://apim-rakathon-q7146n.azure-api.net/openai/v1/chat/completions \
   -H "api-key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-6-luna-dz-eu","messages":[{"role":"user","content":"Pozdrav náš tým na hackathonu."}]}'
+  -d '{"model":"gpt-6-1-sol-dz-eu","messages":[{"role":"user","content":"Ahoj"}]}'
 unset API_KEY</code></pre></div>
           <div class="reveal">
             <button type="button" class="reveal-toggle" aria-expanded="false">Alternativa: Python OpenAI SDK</button>
@@ -498,8 +528,8 @@ client = OpenAI(
     default_headers={"api-key": getpass("Týmový API klíč: ")},
 )
 reply = client.chat.completions.create(
-    model="gpt-6-luna-dz-eu",
-    messages=[{"role": "user", "content": "Pozdrav náš tým na hackathonu."}],
+    model="gpt-6-1-sol-dz-eu",
+    messages=[{"role": "user", "content": "Ahoj"}],
 )
 print(reply.choices[0].message.content)</code></pre></div>
             </div>
