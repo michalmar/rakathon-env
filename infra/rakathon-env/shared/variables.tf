@@ -218,9 +218,9 @@ variable "apim_tokens_per_minute" {
 }
 
 variable "apim_token_quota" {
-  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period (všechny modely dohromady). 4M/den = nejhůře ~200 USD/den při výhradně výstupních tokenech nejdražšího modelu (astra 50 USD/1M)."
+  description = "Token kvóta na subscription (tým) za periodu apim_token_quota_period (všechny modely dohromady). 28M/den = nejhůře ~1400 USD/den při výhradně výstupních tokenech nejdražšího modelu (astra 50 USD/1M); peněžní rozpočty vynucuje samostatný cost job."
   type        = number
-  default     = 4000000
+  default     = 28000000
 }
 
 variable "apim_token_quota_period" {

@@ -67,7 +67,7 @@ Po celkovém revoke musí organizátor zvednout `overall_budget_usd` (nebo zkrá
 ## Ochrana proti „runaway“ nákladům
 
 - **Metering**: API má jen explicitní operace (`POST /chat/completions`, `/responses`, `/images/generations`, `GET /models`, `GET|DELETE /responses/{id}`); wildcard `/*` byl odstraněn, ostatní cesty vrací 404. Všechny nákladné POST mají `llm-token-limit` / `rate-limit-by-key` a logují se.
-- **Denní kvóta** `apim_token_quota` = 4 000 000 tokenů / tým / den (součet přes modely, reset UTC půlnoc). Nejhorší případ (výhradně výstupní tokeny nejdražšího modelu `gpt-6-astra-global`, 50 USD/1M) = ~200 USD/den, tj. týmový rozpočet 1 000 USD nelze spálit dříve než za 5 dní; realistický mix vychází řádově na 10–30 USD/den.
+- **Denní kvóta** `apim_token_quota` = 28 000 000 tokenů / tým / den pro všechny týmy včetně team98 (součet přes modely a Chat/Responses operace, reset UTC půlnoc). Nejhorší případ při výhradně výstupních tokenech modelu `gpt-6-astra-global` za 50 USD/1M je ~1 400 USD/den před zásahem rozpočtového jobu; při výhradně vstupních tokenech za 10 USD/1M je to ~280 USD/den. Tokenová kvóta sama nezaručuje dodržení peněžního rozpočtu. Samostatný cost job vynucuje kumulativní rozpočet 1 000 USD na tým a celkový práh 4 800 USD; kvůli zpoždění logů a pětiminutovému intervalu může dojít k překročení.
 - **TPM** `apim_tokens_per_minute` = 200 000 (sdílená kapacita deploymentů se nemění).
 - Obrázky: `apim_image_calls_per_minute` = 30 / tým (≈ 6 USD/min nejhůře).
 
@@ -78,4 +78,4 @@ Po celkovém revoke musí organizátor zvednout `overall_budget_usd` (nebo zkrá
 - Job je fail-open: když dotaz do LAW selže, nic se neblokuje; hlídá to alert `job-stalled`.
 - Streaming: policy na `chat/completions` při `stream=true` vynutí `stream_options.include_usage=true` (ověřeno 2026-10-10: streamovaný požadavek bez volby je v `ApiManagementGatewayLlmLog` s tokeny). `/responses` nemá `stream_options`; usage je součástí události `response.completed`.
 - Testovací alerty rozeslaly e-maily na produkční adresy.
-- `apim-findings.md` popisuje starý stav: wildcard operace `/*` byly odstraněny a denní kvóta je nyní 4 M tokenů.
+- `apim-findings.md` popisuje starý stav: wildcard operace `/*` byly odstraněny a denní kvóta je nyní 28 M tokenů.
