@@ -214,7 +214,7 @@ variable "apim_publisher_email" {
 variable "apim_tokens_per_minute" {
   description = "Limit tokenů za minutu na subscription (tým)."
   type        = number
-  default     = 200000
+  default     = 300000
 }
 
 variable "apim_token_quota" {

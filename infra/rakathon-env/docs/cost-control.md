@@ -9,7 +9,7 @@ Spotřeba každého týmu (APIM subscription `teamNN`) se z logů APIM přepoč�
 | Celý event | 5 000 USD (`overall_budget_usd`) | varování od 90 % (4 500 USD) e-mailem; **revoke všech týmů** při `5000 − 200` USD (`overall_revoke_safety_margin_usd`) |
 | Jeden tým | 1 000 USD (`team_budget_usd`) | varování od 90 % (900 USD); revoke týmu při 100 % |
 
-Součet týmových rozpočtů smí být vyšší než 5 000 USD – platí limit, který padne dřív. Rezerva 200 USD kryje zpoždění (logy ~2,5 min + job po 5 min + zápis) – během ~8 min může tým při 200 000 tokenů/min utratit nejhůře desítky USD.
+Součet týmových rozpočtů smí být vyšší než 5 000 USD – platí limit, který padne dřív. Rezerva 200 USD snižuje riziko překročení při zpoždění (logy ~2,5 min + job po 5 min + zápis), ale nezaručuje dodržení celkového rozpočtu. Během ~8 min může jeden tým při 300 000 tokenů/min a výhradně výstupních tokenech Astra za 50 USD/1M utratit přibližně 120 USD navíc; více týmů může rezervu společně překročit.
 
 Rozpočtové okno začíná v `budget_window_start` (UTC); starší spotřeba se nepočítá.
 
@@ -68,7 +68,7 @@ Po celkovém revoke musí organizátor zvednout `overall_budget_usd` (nebo zkrá
 
 - **Metering**: API má jen explicitní operace (`POST /chat/completions`, `/responses`, `/images/generations`, `GET /models`, `GET|DELETE /responses/{id}`); wildcard `/*` byl odstraněn, ostatní cesty vrací 404. Všechny nákladné POST mají `llm-token-limit` / `rate-limit-by-key` a logují se.
 - **Denní kvóta** `apim_token_quota` = 28 000 000 tokenů / tým / den pro všechny týmy včetně team98 (součet přes modely a Chat/Responses operace, reset UTC půlnoc). Nejhorší případ při výhradně výstupních tokenech modelu `gpt-6-astra-global` za 50 USD/1M je ~1 400 USD/den před zásahem rozpočtového jobu; při výhradně vstupních tokenech za 10 USD/1M je to ~280 USD/den. Tokenová kvóta sama nezaručuje dodržení peněžního rozpočtu. Samostatný cost job vynucuje kumulativní rozpočet 1 000 USD na tým a celkový práh 4 800 USD; kvůli zpoždění logů a pětiminutovému intervalu může dojít k překročení.
-- **TPM** `apim_tokens_per_minute` = 200 000 (sdílená kapacita deploymentů se nemění).
+- **TPM** `apim_tokens_per_minute` = 300 000 na tým, sdíleně přes modely a Chat/Responses operace (sdílená kapacita deploymentů se nemění).
 - Obrázky: `apim_image_calls_per_minute` = 30 / tým (≈ 6 USD/min nejhůře).
 
 ## Workbook a testování
